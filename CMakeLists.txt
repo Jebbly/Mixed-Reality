@@ -55,4 +55,4 @@ set(PROJECT_FILES
 
 # Create the actual executable
 add_executable(${PROJECT_NAME} ${PROJECT_FILES})
-target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${EIGEN3_LIBS} ORB_SLAM3 DBoW2 g2o glfw)
+target_link_libraries(${PROJECT_NAME} ${PROJECT_LIBS})
