@@ -9,14 +9,29 @@ message(STATUS "Using OpenCV Version: ${OpenCV_VERSION}")
 find_package(Eigen3 REQUIRED)
 message(STATUS "Using Eigen3 Version: ${Eigen3_VERSION}")
 
+option(GLFW_BUILD_DOCS OFF)
+option(GLFW_BUILD_EXAMPLES OFF)
+option(GLFW_BUILD_TESTS OFF)
 add_subdirectory(extern/glfw)
 include_directories(extern/glfw/include)
 message(STATUS "Using GLFW Directory: extern/glfw")
 
-set(GLAD_SOURCES
-    extern/glad/src/glad.c)
 include_directories(extern/glad/include)
 message(STATUS "Using GLAD Directory: extern/glad")
+
+include_directories(extern/imgui)
+include_directories(extern/imgui/backends)
+message(STATUS "Using ImGui Directory: extern/imgui")
+
+set(LIB_SOURCES
+    extern/glad/src/glad.c
+    extern/imgui/imgui.cpp
+    extern/imgui/imgui_draw.cpp
+    extern/imgui/imgui_tables.cpp
+    extern/imgui/imgui_widgets.cpp
+    extern/imgui/backends/imgui_impl_glfw.cpp
+    extern/imgui/backends/imgui_impl_opengl3.cpp
+)
 
 set(ORB_SLAM3_DIR "" CACHE STRING "Path to ORB-SLAM3 Directory")
 if (ORB_SLAM3_DIR STREQUAL "")
@@ -49,7 +64,7 @@ set(PROJECT_LIBS
 # Setup source code
 include_directories(include)
 set(PROJECT_FILES
-    ${GLAD_SOURCES}
+    ${LIB_SOURCES}
     src/main.cpp
 )
 
