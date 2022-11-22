@@ -65,6 +65,7 @@ set(PROJECT_LIBS
 include_directories(include)
 set(PROJECT_FILES
     ${LIB_SOURCES}
+    src/renderer.cpp
     src/main.cpp
 )
 
