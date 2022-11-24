@@ -12,7 +12,7 @@ private:
     std::vector<double> m_timestamps;
 
 public:
-    OfflineCamera(const std::string& associated_files, const std::string);
+    OfflineCamera(const std::string& associated_files);
 
     cv::Mat get_rgb_image(size_t index) const;
     cv::Mat get_depth_image(size_t index) const;
