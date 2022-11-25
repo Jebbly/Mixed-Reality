@@ -5,8 +5,23 @@ void framebuffer_resize(GLFWwindow* window, int new_width, int new_height)
     glViewport(0, 0, new_width, new_height);
 }
 
+void Renderer::init_gl()
+{
+    glfwMakeContextCurrent(m_window);
+
+    // load address of OpenGL function pointers
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
+          std::cerr << "GLAD Error" << std::endl;
+    }
+
+    glViewport(0, 0, m_width, m_height);
+    glfwSetFramebufferSizeCallback(m_window, framebuffer_resize);
+}
+
 void Renderer::init_ui()
 {
+    // Setup the ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -19,7 +34,6 @@ void Renderer::init_ui()
 
 void Renderer::draw_ui()
 {
-    // Setup the ImGui context
     static int counter = 0;
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -45,14 +59,18 @@ void Renderer::draw_ui()
 void Renderer::init_background_image()
 {
     // Configure a texture in OpenGL to store the background image
-    glGenTextures(1, &m_background_image);
-    glBindTexture(GL_TEXTURE_2D, m_background_image);
+    glGenTextures(1, &m_background_texture);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_background_texture);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_width, m_height, 0, GL_LUMINANCE, GL_FLOAT, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_width, m_height, 0, GL_RGB, GL_FLOAT, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+
+    std::vector<GLubyte> empty(3 * m_width * m_height, 255);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_width, m_height, GL_RGB, GL_UNSIGNED_BYTE, empty.data());
 
     // Draw a screen quad to sample the background image
     glGenVertexArrays(1, &m_quad_vao);
@@ -80,8 +98,8 @@ void Renderer::init_background_image()
     // We also need a shader to only draw the background image
     m_background_shader = create_program(m_shader_dir + "/vertex.glsl", m_shader_dir + "/fragment.glsl");
 
-    // Set the flag to indicate that there is new data
-    m_image_updated = true;
+    // Set the flag to indicate that there's no new data for now
+    m_image_updated = false;
 
     std::cout << "Background image shader initialized" << std::endl;
 }
@@ -91,12 +109,28 @@ void Renderer::draw_background_image()
     // need a mutex here
     // Get the most recently updated image
     // if the image has changed
+    std::lock_guard<std::mutex> lock(m_image_mutex);
+    static int color = 0;
+    if (m_image_updated) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_background_texture);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_width, m_height, GL_BGR, GL_UNSIGNED_BYTE, m_background_image.data);
+        color = (color + 1) % 256;
+        m_image_updated = false;
+    }
+
     glUseProgram(m_background_shader);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_background_texture);
+    glUniform1i(glGetUniformLocation(m_background_shader, "backgroundImage"), 0); 
     glBindVertexArray(m_quad_vao);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 }
 
-Renderer::Renderer(size_t width, size_t height, const std::string& shader_dir) : m_width{width}, m_height{height}, m_shader_dir{shader_dir}
+Renderer::Renderer(size_t width, size_t height, const std::string& shader_dir) : 
+    m_width{width}, 
+    m_height{height}, 
+    m_shader_dir{shader_dir}
 {
     // initialize and configure GLFW
     glfwInit();
@@ -111,19 +145,8 @@ Renderer::Renderer(size_t width, size_t height, const std::string& shader_dir) :
         // throw exception
         std::cerr << "GLFW Error" << std::endl;
     }
-    glfwMakeContextCurrent(m_window);
 
-    // load address of OpenGL function pointers
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-    {
-          std::cerr << "GLAD Error" << std::endl;
-    }
-
-    glViewport(0, 0, m_width, m_height);
-    glfwSetFramebufferSizeCallback(m_window, framebuffer_resize);
-
-    init_ui();
-    init_background_image();
+    std::cout << "Using shaders from " << m_shader_dir << std::endl;
 }
 
 Renderer::~Renderer()
@@ -133,7 +156,11 @@ Renderer::~Renderer()
 
 void Renderer::run()
 {
-    while (!glfwWindowShouldClose(m_window))
+    init_gl();
+    init_ui();
+    init_background_image();
+
+    while (!m_should_close)
     {
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -146,4 +173,21 @@ void Renderer::run()
         glfwPollEvents();
         glfwSwapBuffers(m_window);
     }
+
+    glfwSetWindowShouldClose(m_window, GL_TRUE);
+}
+
+void Renderer::set_background_image(cv::Mat &image)
+{
+    std::lock_guard<std::mutex> lock(m_image_mutex);
+
+    if (!image.empty()) {
+        m_background_image = image.clone();
+        m_image_updated = true;
+    }
+}
+
+void Renderer::set_close()
+{
+    m_should_close = true;
 }

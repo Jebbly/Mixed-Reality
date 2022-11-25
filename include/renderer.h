@@ -1,13 +1,18 @@
 #include <iostream>
+#include <mutex>
+#include <vector>
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
-
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <opencv2/core/core.hpp>
 
 #include "shader_util.h"
+
+#include <thread>
+#include <chrono>
 
 const float vertices[] = {-1.0f, -1.0f, 
                           -1.0f,  1.0f, 
@@ -30,10 +35,16 @@ private:
 
     std::string m_shader_dir;
 
+    std::mutex m_image_mutex;
+    cv::Mat m_background_image;
     GLuint m_quad_vao;
-    GLuint m_background_image;
+    GLuint m_background_texture;
     bool m_image_updated;
     GLuint m_background_shader;
+
+    bool m_should_close;
+
+    void init_gl();
 
     void init_ui();
     void draw_ui();
@@ -46,4 +57,6 @@ public:
     ~Renderer();
 
     void run();
+    void set_background_image(cv::Mat &image);
+    void set_close();
 };

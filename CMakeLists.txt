@@ -67,6 +67,7 @@ set(PROJECT_FILES
     ${LIB_SOURCES}
     src/shader_util.cpp
     src/renderer.cpp
+    src/offline_camera.cpp
     src/main.cpp
 )
 
