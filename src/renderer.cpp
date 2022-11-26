@@ -130,7 +130,8 @@ void Renderer::draw_background_image()
 Renderer::Renderer(size_t width, size_t height, const std::string& shader_dir) : 
     m_width{width}, 
     m_height{height}, 
-    m_shader_dir{shader_dir}
+    m_shader_dir{shader_dir},
+    m_should_close{false}
 {
     // initialize and configure GLFW
     glfwInit();
