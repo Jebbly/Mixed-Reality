@@ -39,6 +39,13 @@ if (ORB_SLAM3_DIR STREQUAL "")
 endif()
 message(STATUS "Using ORB-SLAM3 Directory: ${ORB_SLAM3_DIR}")
 
+include_directories(
+    ${ORB_SLAM3_DIR}
+    ${ORB_SLAM3_DIR}/include
+    ${ORB_SLAM3_DIR}/include/CameraModels
+    ${ORB_SLAM3_DIR}/Thirdparty/Sophus
+    ${EIGEN3_INCLUDE_DIR}
+)
 add_library(ORB_SLAM3 SHARED IMPORTED)
 set_target_properties(ORB_SLAM3 PROPERTIES IMPORTED_LOCATION 
              "${ORB_SLAM3_DIR}/lib/libORB_SLAM3.so")

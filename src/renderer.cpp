@@ -12,7 +12,7 @@ void Renderer::init_gl()
     // load address of OpenGL function pointers
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
-          std::cerr << "GLAD Error" << std::endl;
+          std::cerr << "[RENDERER]: GLAD Error" << std::endl;
     }
 
     glViewport(0, 0, m_width, m_height);
@@ -29,7 +29,7 @@ void Renderer::init_ui()
     ImGui_ImplGlfw_InitForOpenGL(m_window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
 
-    std::cout << "UI initialized" << std::endl;
+    std::cout << "[RENDERER]: UI initialized" << std::endl;
 }
 
 void Renderer::draw_ui()
@@ -101,7 +101,7 @@ void Renderer::init_background_image()
     // Set the flag to indicate that there's no new data for now
     m_image_updated = false;
 
-    std::cout << "Background image shader initialized" << std::endl;
+    std::cout << "[RENDERER]: Background image shader initialized" << std::endl;
 }
 
 void Renderer::draw_background_image() 
@@ -138,15 +138,15 @@ Renderer::Renderer(size_t width, size_t height, const std::string& shader_dir) :
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+    std::cout << "[RENDERER]: Window created" << std::endl;
+
     // create window and make context current
     m_window = glfwCreateWindow(m_width, m_height, "Mixed Reality Demo", NULL, NULL);
     if (m_window == NULL)
     {
         // throw exception
-        std::cerr << "GLFW Error" << std::endl;
+        std::cerr << "[RENDERER]: GLFW Error" << std::endl;
     }
-
-    std::cout << "Using shaders from " << m_shader_dir << std::endl;
 }
 
 Renderer::~Renderer()
@@ -162,7 +162,7 @@ void Renderer::run()
 
     while (!m_should_close)
     {
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         draw_background_image();

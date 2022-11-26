@@ -5,10 +5,10 @@ OfflineCamera::OfflineCamera(const std::string& dataset_dir) :
 {
     std::string associated_files = dataset_dir + "/associated.txt";
 
-    std::cout << "Reading associations from " << associated_files << std::endl;
+    std::cout << "[OFFLINE_CAMERA]: Reading associations from " << associated_files << std::endl;
     std::ifstream associations(associated_files.c_str());
     if (!associations.is_open()) {
-        std::cerr << "Can't open associated.txt file!" << std::endl;
+        std::cerr << "[OFFLINE_CAMERA]: Can't open associated.txt file!" << std::endl;
     }
 
     std::string line;
@@ -33,7 +33,7 @@ OfflineCamera::OfflineCamera(const std::string& dataset_dir) :
         }
     }
 
-    std::cout << "Read " << m_rgb_images.size() << " dataset images" << std::endl;
+    std::cout << "[OFFLINE_CAMERA]: Read " << m_rgb_images.size() << " dataset images" << std::endl;
 }
 
 cv::Mat OfflineCamera::get_rgb_image(size_t index) const
