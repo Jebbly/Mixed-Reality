@@ -18,10 +18,7 @@ int main(int argc, char* argv[])
     if(argc < 5)
     {
         /*
-        ./mixed_reality /home/jebbly/Desktop/Mixed-Reality/ORB-SLAM/Vocabulary/ORBvoc.txt 
-                        /home/jebbly/Desktop/Mixed-Reality/Mixed-Reality/config/ETH3D_resize.yaml 
-                        /home/jebbly/Desktop/Mixed-Reality/eth3d_table-3 
-                        /home/jebbly/Desktop/Mixed-Reality/Mixed-Reality/shaders
+        ./mixed_reality /home/jebbly/Desktop/Mixed-Reality/ORB-SLAM/Vocabulary/ORBvoc.txt /home/jebbly/Desktop/Mixed-Reality/Mixed-Reality/config/ETH3D_resize.yaml /home/jebbly/Desktop/Mixed-Reality/eth3d_table-3 /home/jebbly/Desktop/Mixed-Reality/Mixed-Reality/shaders
         */
         std::cerr << "Usage: ./mixed_reality [vocabulary_file] [settings_file] [dataset_directory] [shader_directory]" << std::endl;
         return -1;
@@ -37,9 +34,9 @@ int main(int argc, char* argv[])
 
     float image_scale = SLAM.GetImageScale();
     cv::Mat rgb_image, depth_image;
-    float timestamp;
+    double timestamp;
     for (int i = 0; i < camera.get_total_frames(); i++) {
-        rgb_image = camera.get_rgb_image(i);
+        rgb_image = camera.get_rgb_image(i, i > 2 && i < 6 || i == 500);
         depth_image = camera.get_depth_image(i);
         timestamp = camera.get_timestamp(i);
 
@@ -54,12 +51,18 @@ int main(int argc, char* argv[])
             cv::resize(depth_image, depth_image, cv::Size(new_width, new_height));
         }
 
-        cv::Mat Tcw = ORB_SLAM3::Converter::toCvMat(SLAM.TrackRGBD(rgb_image, depth_image, timestamp).matrix());
+        cv::Mat camera_pose = ORB_SLAM3::Converter::toCvMat(SLAM.TrackRGBD(rgb_image, depth_image, timestamp).matrix());
         int state = SLAM.GetTrackingState();
 		std::vector<ORB_SLAM3::MapPoint*> vMPs = SLAM.GetTrackedMapPoints();
 		std::vector<cv::KeyPoint> vKeys = SLAM.GetTrackedKeyPointsUn();
 
-        renderer.set_background_image(rgb_image);
+        if (i == 6 || i == 500) {
+            renderer.m_should_print = true;
+        }
+
+        // This depth image isn't actually the correct one;
+        // We want the completed one instead.
+        renderer.set_info(rgb_image, depth_image, camera_pose, vMPs, vKeys);
         
         // This controls the offline camera's speed 
         std::this_thread::sleep_for(std::chrono::milliseconds(16));

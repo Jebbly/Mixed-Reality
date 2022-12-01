@@ -36,8 +36,9 @@ OfflineCamera::OfflineCamera(const std::string& dataset_dir) :
     std::cout << "[OFFLINE_CAMERA]: Read " << m_rgb_images.size() << " dataset images" << std::endl;
 }
 
-cv::Mat OfflineCamera::get_rgb_image(size_t index) const
+cv::Mat OfflineCamera::get_rgb_image(size_t index, bool show) const
 {
+    if (show) std::cout << m_rgb_images[index] << std::endl;
     return cv::imread(m_dataset_dir + "/" + m_rgb_images[index], cv::IMREAD_UNCHANGED);
 }
 

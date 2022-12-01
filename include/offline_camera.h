@@ -17,7 +17,7 @@ private:
 public:
     OfflineCamera(const std::string& dataset_dir);
 
-    cv::Mat get_rgb_image(size_t index) const;
+    cv::Mat get_rgb_image(size_t index, bool show) const;
     cv::Mat get_depth_image(size_t index) const;
     double get_timestamp(size_t index) const;
     int get_total_frames() const;

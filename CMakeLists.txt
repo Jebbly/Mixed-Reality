@@ -16,6 +16,9 @@ add_subdirectory(extern/glfw)
 include_directories(extern/glfw/include)
 message(STATUS "Using GLFW Directory: extern/glfw")
 
+include_directories(extern/glm)
+message(STATUS "Using GLM Directory: extern/glm")
+
 include_directories(extern/glad/include)
 message(STATUS "Using GLAD Directory: extern/glad")
 
@@ -75,6 +78,7 @@ set(PROJECT_FILES
     src/shader_util.cpp
     src/renderer.cpp
     src/offline_camera.cpp
+    src/plane.cpp
     src/main.cpp
 )
 
