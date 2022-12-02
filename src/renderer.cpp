@@ -167,182 +167,11 @@ void Renderer::init_objects()
     std::cout << "[RENDERER]: Object shaders initialized" << std::endl;
 }
 
-Plane* Renderer::add_object()
-{
-    // Retrieve 3D points
-    std::vector<cv::Mat> points;
-    points.reserve(m_map_points.size());
-    std::vector<ORB_SLAM3::MapPoint*> map_points;
-    map_points.reserve(m_map_points.size());
-
-    std::cout << "TOTAL MAP POINTS: " << m_map_points.size() << std::endl;
-
-
-	vector<cv::KeyPoint> key_points;
-
-    for (size_t i=0; i<m_map_points.size(); i++)
-    {
-        ORB_SLAM3::MapPoint* pMP=m_map_points[i];
-        if(pMP)
-        {
-            if(pMP->Observations()>5)
-            {
-                points.push_back(ORB_SLAM3::Converter::toCvMat(pMP->GetWorldPos()));
-                map_points.push_back(pMP);
-				key_points.push_back(m_key_points[i]);
-            }
-        }
-    }
-
-    const int N = points.size();
-
-    if(N<50)
-        return NULL;
-
-    std::cout << "OBSERVED MAP POINTS: " << N << std::endl;
-
-    for (int i = 0; i < 5; i++) {
-        std::cout << points[i] << std::endl;
-    }
-
-    // Indices for minimum set selection
-    std::vector<size_t> vAllIndices;
-    vAllIndices.reserve(N);
-    std::vector<size_t> vAvailableIndices;
-
-    for(int i=0; i<N; i++)
-    {
-        vAllIndices.push_back(i);
-    }
-
-    float bestDist = 1e10;
-    std::vector<float> bestvDist;
-	int best_it = 0;
-
-	std::vector<int> planept;
-
-    //RANSAC
-    for(int n=0; n<1; n++)
-    {
-        vAvailableIndices = vAllIndices;
-
-        cv::Mat A(3,4,CV_32F);
-        A.col(3) = cv::Mat::ones(3,1,CV_32F);
-
-		std::vector<int> idxPlanePt;
-		idxPlanePt.resize(0);
-
-		// std::cout << "[DEBUG] Selected idx: ";
-        // Get min set of points
-        int randPoint[] = {2, 3, 4};
-        for(short i = 0; i < 3; ++i)
-        {
-            int randi = randPoint[i];
-
-            if (m_should_print) {
-                std::cout << randi << std::endl;
-            }
-
-            int idx = vAvailableIndices[randi];
-            if (m_should_print) {
-                std::cout << idx << std::endl;
-            }
-			idxPlanePt.push_back(idx);
-            idx = randi;
-
-			// std::cout << "point " << i << "\t idx: " << idx << "\t";
-
-            A.row(i).colRange(0,3) = points[idx].t();
-
-			// std::cout << "pos: " << A.at<float>(i,0) << " \ " << A.at<float>(i,1) << " \ " << A.at<float>(i,2) << "\n";
-
-			// std::cout << "[DEBUG] sanity check: " << points.size() << " \ " << key_points.size() << "\n";
-
-            // cv::circle(im,keypoints2d[idx].pt,100,cv::Scalar(0,255,0),10);
-
-            vAvailableIndices[randi] = vAvailableIndices.back();
-            vAvailableIndices.pop_back();
-        }
-
-        cv::Mat u,w,vt;
-        cv::SVDecomp(A,w,u,vt,cv::SVD::MODIFY_A | cv::SVD::FULL_UV);
-
-        const float a = vt.at<float>(3,0);
-        const float b = vt.at<float>(3,1);
-        const float c = vt.at<float>(3,2);
-        const float d = vt.at<float>(3,3);
-
-		std::cout << "[DEBUG] Plane coefficient: " << a << " \ " << b << " \ " << c << " \ " << d << "\n";
-
-        vector<float> vDistances(N,0);
-
-        const float f = 1.0f/sqrt(a*a+b*b+c*c+d*d);
-
-        for(int i=0; i<N; i++)
-        {
-            vDistances[i] = fabs(points[i].at<float>(0)*a+points[i].at<float>(1)*b+points[i].at<float>(2)*c+d)*f;
-        }
-
-        std::vector<float> vSorted = vDistances;
-        std::sort(vSorted.begin(),vSorted.end());
-
-        int nth = max((int)(0.2*N),20);
-        const float medianDist = vSorted[nth];
-
-        if(medianDist<bestDist)
-        {
-			planept = idxPlanePt;
-
-            bestDist = medianDist;
-            bestvDist = vDistances;
-			best_it = n;
-        }
-		// std::cout << "[DEBUG] iter: " << n << "\t curr dist: " << medianDist << "\t best dist: " << bestDist << " at iter: " << best_it << "\n\n";
-    }
-
-	std::cout << "Best dist after RANSAC: " << bestDist << "\n";
-
-    // Compute threshold inlier/outlier
-    const float th = 1.4*bestDist;
-    std::vector<bool> vbInliers(N,false);
-    int nInliers = 0;
-    for(int i=0; i<N; i++)
-    {
-        if(bestvDist[i]<th)
-        {
-            nInliers++;
-            vbInliers[i]=true;
-        }
-    }
-
-    std::vector<ORB_SLAM3::MapPoint*> vInlierMPs(nInliers,NULL);
-    int nin = 0;
-    for(int i=0; i<N; i++)
-    {
-        if(vbInliers[i])
-        {
-            vInlierMPs[nin] = map_points[i];
-            nin++;
-        }
-    }
-
-    return new Plane(vInlierMPs, m_camera_pose);
-}
-
 void Renderer::draw_object(size_t index)
 {
     // Get the plane
     Plane* plane = m_planes[index];
-    if (m_should_print) {
-        std::cout << "MODEL MATRIX: " << std::endl;
-        for (int row = 0; row < 4; row++) {
-            for (int col = 0; col < 4; col++) {
-                std::cout << plane->glTpw[col][row] << " ";
-            }
-            std::cout << std::endl;
-        }
-    }
-    glUniformMatrix4fv(glGetUniformLocation(m_object_shader, "model"), 1, GL_FALSE, &plane->glTpw[0][0]);
+    glUniformMatrix4fv(glGetUniformLocation(m_object_shader, "model"), 1, GL_FALSE, &plane->model_matrix[0][0]);
     glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, nullptr);
 }
 
@@ -380,30 +209,11 @@ void Renderer::draw_objects()
     view[3][2] = m_camera_pose.at<float>(2,3);
     view[3][3] = 1.0;
 
-    if (m_should_print) {
-        std::cout << "PERSPECTIVE" << std::endl;
-        for (int row = 0; row < 4; row++) {
-            for (int col = 0; col < 4; col++) {
-                std::cout << m_persp[col][row] << " ";
-            }
-            std::cout << std::endl;
-        }
-
-        std::cout << "CAMERA POSE" << std::endl;
-        for (int row = 0; row < 4; row++) {
-            for (int col = 0; col < 4; col++) {
-                std::cout << view[col][row] << " ";
-            }
-            std::cout << std::endl;
-        }
-    }
-
     glUniformMatrix4fv(glGetUniformLocation(m_object_shader, "view"), 1, GL_FALSE, &view[0][0]);
 
     for (size_t i = 0; i < m_planes.size(); i++) {
         draw_object(i);
     }
-    m_should_print = false;
 }
 
 void Renderer::draw_key_points()
@@ -412,7 +222,7 @@ void Renderer::draw_key_points()
     {
         if (m_map_points[i])
         {
-            cv::circle(m_background_image, m_key_points[i].pt, 2, cv::Scalar(0,255,0), -1);
+            cv::circle(m_background_image, m_key_points[i].pt, 2, cv::Scalar(0, 255, 0), -1);
         }
     }
 }
@@ -444,6 +254,10 @@ Renderer::Renderer(size_t width, size_t height, const std::string& shader_dir) :
 
 Renderer::~Renderer()
 {
+    for (int i = 0; i < m_planes.size(); i++) {
+        delete m_planes[i];
+    }
+    
     glfwTerminate();
 }
 
@@ -471,28 +285,11 @@ void Renderer::run()
         
         draw_background_image();
 
-        if (m_add_object || m_should_print) {
-            Plane* plane = add_object();
+        if (m_add_object) {
+            Plane* plane = add_object(m_map_points, m_key_points, m_camera_pose);
             if (plane) {
                 std::cout << "[RENDERER]: New object added" << std::endl;
-
-                // std::cout << "WORLD TO VIEW: " << std::endl;
-                // for (int i = 0; i < 4; i++) {
-                //     for (int j = 0; j < 4; j++) {
-                //         std::cout << m_camera_pose.at<float>(i, j) << ' ';
-                //     }
-                //     std::cout << std::endl;
-                // }
                 m_planes.push_back(plane);
-
-                // std::cout << "PLANE TO WORLD: " << std::endl;
-                // for (int i = 0; i < 4; i++) {
-                //     for (int j = 0; j < 4; j++) {
-                //         std::cout << plane->glTpw[j][i] << ' ';
-                //     }
-                //     std::cout << std::endl;
-                // }
-
             } else {
                 std::cout << "[RENDERER]: No plane detected to add object" << std::endl;
             }
@@ -500,10 +297,6 @@ void Renderer::run()
         }
 
         glClear(GL_DEPTH_BUFFER_BIT);
-        if (m_should_close) {
-            std::cout << "DEBUG INFO" << std::endl;
-        }
-        
         draw_objects();
 
         lock.unlock();

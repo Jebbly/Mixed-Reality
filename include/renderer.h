@@ -56,7 +56,6 @@ private:
     void draw_background_image();
 
     void init_objects();
-    Plane* add_object();
     void draw_object(size_t index);
     void draw_objects();
 
@@ -71,6 +70,4 @@ public:
                   const std::vector<ORB_SLAM3::MapPoint*> &map_points,
                   const std::vector<cv::KeyPoint> &key_points);
     void set_close();
-    
-    bool m_should_print = false;
 };

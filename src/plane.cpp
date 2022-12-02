@@ -20,120 +20,216 @@ cv::Mat ExpSO3(const cv::Mat &v)
     return ExpSO3(v.at<float>(0),v.at<float>(1),v.at<float>(2));
 }
 
-Plane::Plane(const std::vector<ORB_SLAM3::MapPoint*> &vMPs, const cv::Mat &Tcw):mvMPs(vMPs),mTcw(Tcw.clone())
+Plane::Plane(const std::vector<ORB_SLAM3::MapPoint*> &plane_points, const cv::Mat &camera_pose) : 
+    map_points(plane_points)
 {
-	// std::cout << "[DEBUG] Recomputing plane !!!\n";
-    rang = 0; // -3.14f/2+((float)rand()/RAND_MAX)*3.14f;
-    Recompute();
+    orientation = -3.14f / 2 + ((float) rand() / RAND_MAX) * 3.14f;
+    recompute(camera_pose);
 }
 
-void Plane::Recompute()
+void Plane::recompute(const cv::Mat &camera_pose)
 {
-    const int N = mvMPs.size();
+    const int N = map_points.size();
 
     // Recompute plane with all points
-    cv::Mat A = cv::Mat(N,4,CV_32F);
-    A.col(3) = cv::Mat::ones(N,1,CV_32F);
+    cv::Mat A = cv::Mat(N, 4, CV_32F);
+    A.col(3) = cv::Mat::ones(N, 1, CV_32F);
 
-    o = cv::Mat::zeros(3,1,CV_32F);
-	// Eigen::Vector3f o = Eigen::Vector3f::Zero();
+    origin = cv::Mat::zeros(3,1,CV_32F);
 
-    int nPoints = 0;
-    for(int i=0; i<N; i++)
+    int num_points = 0;
+    for (int i = 0; i < N; i++)
     {
-        ORB_SLAM3::MapPoint* pMP = mvMPs[i];
-        if(!pMP->isBad())
+        ORB_SLAM3::MapPoint* map_point = map_points[i];
+        if (!map_point->isBad())
         {
-            cv::Mat Xw = ORB_SLAM3::Converter::toCvMat(pMP->GetWorldPos());
-            // Eigen::Vector3f Xw = pMP->GetWorldPos();
-
-            // std::cout << "POINT" << std::endl;
-            // std::cout << Xw << std::endl;
-            o+=Xw;
-
-            A.row(nPoints).colRange(0,3) = Xw.t();
-			// A.at<float>(nPoints, 0) = Xw(0);
-			// A.at<float>(nPoints, 1) = Xw(1);
-			// A.at<float>(nPoints, 2) = Xw(2);
-
-            nPoints++;
+            cv::Mat world_pos = ORB_SLAM3::Converter::toCvMat(map_point->GetWorldPos());
+            origin += world_pos;
+            A.row(num_points).colRange(0,3) = world_pos.t();
+            num_points++;
         }
     }
-    A.resize(nPoints);
+    A.resize(num_points);
 
-    cv::Mat u,w,vt;
-    cv::SVDecomp(A,w,u,vt,cv::SVD::MODIFY_A | cv::SVD::FULL_UV);
+    cv::Mat u, w, vt;
+    cv::SVDecomp(A, w, u, vt, cv::SVD::MODIFY_A | cv::SVD::FULL_UV);
 
-    float a = vt.at<float>(3,0);
-    float b = vt.at<float>(3,1);
-    float c = vt.at<float>(3,2);
+    float a = vt.at<float>(3, 0);
+    float b = vt.at<float>(3, 1);
+    float c = vt.at<float>(3, 2);
+    std::cout << "[PLANE]: Plane coefficients: " << a << " " << b << " " << c << std::endl;
 
-    std::cout << "Plane coefficients: " << a << " " << b << " " << c << std::endl;
+    origin = origin * (1.0f / num_points);
+    const float f = 1.0f / sqrt(a * a + b * b + c * c);
 
-    o = o*(1.0f/nPoints);
-    const float f = 1.0f/sqrt(a*a+b*b+c*c);
+    cv::Mat Oc = -camera_pose.colRange(0,3).rowRange(0,3).t() * camera_pose.rowRange(0,3).col(3);
+    cv::Mat XC = Oc - origin;
 
-    // Compute XC just the first time
-    if(XC.empty())
+    if ((XC.at<float>(0) * a + XC.at<float>(1) * b + XC.at<float>(2) * c) > 0)
     {
-        cv::Mat Oc = -mTcw.colRange(0,3).rowRange(0,3).t()*mTcw.rowRange(0,3).col(3);
-        XC = Oc-o;
-		// XC.at<float>(0) = Oc.at<float>(0) - o(0);
-		// XC.at<float>(1) = Oc.at<float>(1) - o(1);
-		// XC.at<float>(2) = Oc.at<float>(2) - o(2);
+        a = -a;
+        b = -b;
+        c = -c;
     }
 
-    if((XC.at<float>(0)*a+XC.at<float>(1)*b+XC.at<float>(2)*c)>0)
-    {
-        a=-a;
-        b=-b;
-        c=-c;
-    }
+    const float nx = a * f;
+    const float ny = b * f;
+    const float nz = c * f;
 
-    const float nx = a*f;
-    const float ny = b*f;
-    const float nz = c*f;
-
-    n = (cv::Mat_<float>(3,1)<<nx,ny,nz);
-
+    normal = (cv::Mat_<float>(3,1) << nx, ny, nz);
     cv::Mat up = (cv::Mat_<float>(3,1) << 0.0f, 1.0f, 0.0f);
-
-    cv::Mat v = up.cross(n);
+    cv::Mat v = up.cross(normal);
     const float sa = cv::norm(v);
-    const float ca = up.dot(n);
-    const float ang = atan2(sa,ca);
-    Tpw = cv::Mat::eye(4,4,CV_32F);
+    const float ca = up.dot(normal);
+    const float ang = atan2(sa, ca);
 
-    std::cout << "PLANE" << std::endl;
-    std::cout << Tpw << std::endl;
+    cv::Mat transform = cv::Mat::eye(4, 4, CV_32F);
+    transform.rowRange(0, 3).colRange(0, 3) = ExpSO3(v * ang / sa) * ExpSO3(up * orientation);
+    origin.copyTo(transform.col(3).rowRange(0,3));
 
+    model_matrix[0][0] = transform.at<float>(0,0);
+    model_matrix[0][1] = transform.at<float>(1,0);
+    model_matrix[0][2] = transform.at<float>(2,0);
+    model_matrix[0][3] = 0.0;
 
-    Tpw.rowRange(0,3).colRange(0,3) = ExpSO3(v*ang/sa)*ExpSO3(up*rang);
-    std::cout << "PLANE" << std::endl;
-    std::cout << Tpw << std::endl;
-	// colRange rowRange only cover left not right
-    o.copyTo(Tpw.col(3).rowRange(0,3));
+    model_matrix[1][0] = transform.at<float>(0,1);
+    model_matrix[1][1] = transform.at<float>(1,1);
+    model_matrix[1][2] = transform.at<float>(2,1);
+    model_matrix[1][3] = 0.0;
 
-    std::cout << "PLANE" << std::endl;
-    std::cout << Tpw << std::endl;
+    model_matrix[2][0] = transform.at<float>(0,2);
+    model_matrix[2][1] = transform.at<float>(1,2);
+    model_matrix[2][2] = transform.at<float>(2,2);
+    model_matrix[2][3] = 0.0;
 
-    glTpw[0][0] = Tpw.at<float>(0,0);
-    glTpw[0][1] = Tpw.at<float>(1,0);
-    glTpw[0][2] = Tpw.at<float>(2,0);
-    glTpw[0][3] = 0.0;
+    model_matrix[3][0] = transform.at<float>(0,3);
+    model_matrix[3][1] = transform.at<float>(1,3);
+    model_matrix[3][2] = transform.at<float>(2,3);
+    model_matrix[3][3] = 1.0;
+}
 
-    glTpw[1][0] = Tpw.at<float>(0,1);
-    glTpw[1][1] = Tpw.at<float>(1,1);
-    glTpw[1][2] = Tpw.at<float>(2,1);
-    glTpw[1][3] = 0.0;
+Plane* add_object(const std::vector<ORB_SLAM3::MapPoint*> &curr_map_points, 
+                  const std::vector<cv::KeyPoint> &curr_key_points, 
+                  const cv::Mat &curr_camera_pose)
+{
+    // Retrieve 3D points
+    std::vector<cv::Mat> points;
+    std::vector<ORB_SLAM3::MapPoint*> map_points;
+	std::vector<cv::KeyPoint> key_points;
 
-    glTpw[2][0] = Tpw.at<float>(0,2);
-    glTpw[2][1] = Tpw.at<float>(1,2);
-    glTpw[2][2] = Tpw.at<float>(2,2);
-    glTpw[2][3] = 0.0;
+    for (int i = 0; i < curr_map_points.size(); i++)
+    {
+        ORB_SLAM3::MapPoint* map_point = curr_map_points[i];
+        if (map_point)
+        {
+            if (map_point->Observations() > 5)
+            {
+                points.push_back(ORB_SLAM3::Converter::toCvMat(map_point->GetWorldPos()));
+                map_points.push_back(map_point);
+				key_points.push_back(curr_key_points[i]);
+            }
+        }
+    }
 
-    glTpw[3][0] = Tpw.at<float>(0,3);
-    glTpw[3][1] = Tpw.at<float>(1,3);
-    glTpw[3][2] = Tpw.at<float>(2,3);
-    glTpw[3][3] = 1.0;
+    const int N = points.size();
+
+    if (N < 50)
+        return nullptr;
+
+    // Indices for minimum set selection
+    std::vector<size_t> all_indices;
+    std::vector<size_t> available_indices;
+
+    for (int i = 0; i < N; i++)
+    {
+        all_indices.push_back(i);
+    }
+
+    float best_dist = 1e10;
+    std::vector<float> best_dists;
+	int best_it = 0;
+
+	std::vector<int> plane_points;
+
+    // RANSAC
+    for (int n = 0; n < 50; n++)
+    {
+        available_indices = all_indices;
+
+        cv::Mat A(3, 4, CV_32F);
+        A.col(3) = cv::Mat::ones(3, 1, CV_32F);
+
+		std::vector<int> plane_point_indices;
+    
+        // Get min set of points
+        for (size_t i = 0; i < 3; i++)
+        {
+            int rand_idx = DUtils::Random::RandomInt(0, available_indices.size() - 1);
+            int idx = available_indices[rand_idx];
+			plane_point_indices.push_back(idx);
+
+            A.row(i).colRange(0, 3) = points[idx].t();
+
+            available_indices[rand_idx] = available_indices.back();
+            available_indices.pop_back();
+        }
+
+        cv::Mat u, w, vt;
+        cv::SVDecomp(A, w, u, vt, cv::SVD::MODIFY_A | cv::SVD::FULL_UV);
+
+        const float a = vt.at<float>(3, 0);
+        const float b = vt.at<float>(3, 1);
+        const float c = vt.at<float>(3, 2);
+        const float d = vt.at<float>(3, 3);
+
+        std::vector<float> distances(N, 0);
+
+        const float f = 1.0f / sqrt(a * a + b * b + c * c + d * d);
+        for (int i = 0; i < N; i++)
+        {
+            distances[i] = fabs(points[i].at<float>(0) * a + points[i].at<float>(1) * b + points[i].at<float>(2) * c + d) * f;
+        }
+
+        std::vector<float> sorted = distances;
+        std::sort(sorted.begin(), sorted.end());
+
+        int nth = max((int) (0.2 * N), 20);
+        const float median_dist = sorted[nth];
+
+        if(median_dist < best_dist)
+        {
+			plane_points = plane_point_indices;
+            best_dist = median_dist;
+            best_dists = distances;
+			best_it = n;
+        }
+	}
+
+	std::cout << "[PLANE]: Best dist after RANSAC: " << best_dist << "\n";
+
+    // Compute threshold inlier/outlier
+    const float threshold = 1.4 * best_dist;
+    std::vector<bool> inlier_flags(N, false);
+    int inlier_count = 0;
+    for (int i = 0; i < N; i++)
+    {
+        if(best_dists[i] < threshold)
+        {
+            inlier_count++;
+            inlier_flags[i] = true;
+        }
+    }
+
+    std::vector<ORB_SLAM3::MapPoint*> inlier_map_points(inlier_count, nullptr);
+    int inlier_idx = 0;
+    for (int i = 0; i < N; i++)
+    {
+        if(inlier_flags[i])
+        {
+            inlier_map_points[inlier_idx] = map_points[i];
+            inlier_idx++;
+        }
+    }
+
+    return new Plane(inlier_map_points, curr_camera_pose);
 }

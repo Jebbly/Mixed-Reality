@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
     cv::Mat rgb_image, depth_image;
     double timestamp;
     for (int i = 0; i < camera.get_total_frames(); i++) {
-        rgb_image = camera.get_rgb_image(i, i > 2 && i < 6 || i == 500);
+        rgb_image = camera.get_rgb_image(i);
         depth_image = camera.get_depth_image(i);
         timestamp = camera.get_timestamp(i);
 
@@ -55,10 +55,6 @@ int main(int argc, char* argv[])
         int state = SLAM.GetTrackingState();
 		std::vector<ORB_SLAM3::MapPoint*> vMPs = SLAM.GetTrackedMapPoints();
 		std::vector<cv::KeyPoint> vKeys = SLAM.GetTrackedKeyPointsUn();
-
-        if (i == 6 || i == 500) {
-            renderer.m_should_print = true;
-        }
 
         // This depth image isn't actually the correct one;
         // We want the completed one instead.

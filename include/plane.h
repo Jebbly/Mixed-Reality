@@ -13,23 +13,17 @@
 class Plane
 {
 public:
-    Plane(const std::vector<ORB_SLAM3::MapPoint*> &vMPs, const cv::Mat &Tcw);
+    Plane(const std::vector<ORB_SLAM3::MapPoint*> &plane_points, const cv::Mat &camera_pose);
+    void recompute(const cv::Mat &camera_pose);
 
-    void Recompute();
-
-    //normal
-    cv::Mat n;
-    //origin
-    cv::Mat o;
-    //arbitrary orientation along normal
-    float rang;
-    //transformation from world to the plane
-    cv::Mat Tpw;
-    glm::mat4 glTpw;
-    //MapPoints that define the plane
-    std::vector<ORB_SLAM3::MapPoint*> mvMPs;
-    //camera pose when the plane was first observed (to compute normal direction)
-    cv::Mat mTcw, XC;
+    cv::Mat normal, origin;
+    float orientation;
+    glm::mat4 model_matrix;
+    std::vector<ORB_SLAM3::MapPoint*> map_points;
 };
+
+Plane* add_object(const std::vector<ORB_SLAM3::MapPoint*> &curr_map_points,
+                  const std::vector<cv::KeyPoint> &curr_key_points,
+                  const cv::Mat &curr_camera_pose);
 
 #endif // PLANE_H
