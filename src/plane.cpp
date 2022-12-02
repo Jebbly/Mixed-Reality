@@ -1,25 +1,5 @@
 #include "plane.h"
 
-const float eps = 1e-4;
-cv::Mat ExpSO3(const float &x, const float &y, const float &z)
-{
-    cv::Mat I = cv::Mat::eye(3,3,CV_32F);
-    const float d2 = x*x+y*y+z*z;
-    const float d = sqrt(d2);
-    cv::Mat W = (cv::Mat_<float>(3,3) << 0, -z, y,
-                 z, 0, -x,
-                 -y,  x, 0);
-    if(d<eps)
-        return (I + W + 0.5f*W*W);
-    else
-        return (I + W*sin(d)/d + W*W*(1.0f-cos(d))/d2);
-}
-
-cv::Mat ExpSO3(const cv::Mat &v)
-{
-    return ExpSO3(v.at<float>(0),v.at<float>(1),v.at<float>(2));
-}
-
 Plane::Plane(const std::vector<ORB_SLAM3::MapPoint*> &plane_points, const cv::Mat &camera_pose) : 
     map_points(plane_points)
 {
@@ -86,26 +66,7 @@ void Plane::recompute(const cv::Mat &camera_pose)
     cv::Mat transform = cv::Mat::eye(4, 4, CV_32F);
     transform.rowRange(0, 3).colRange(0, 3) = ExpSO3(v * ang / sa) * ExpSO3(up * orientation);
     origin.copyTo(transform.col(3).rowRange(0,3));
-
-    model_matrix[0][0] = transform.at<float>(0,0);
-    model_matrix[0][1] = transform.at<float>(1,0);
-    model_matrix[0][2] = transform.at<float>(2,0);
-    model_matrix[0][3] = 0.0;
-
-    model_matrix[1][0] = transform.at<float>(0,1);
-    model_matrix[1][1] = transform.at<float>(1,1);
-    model_matrix[1][2] = transform.at<float>(2,1);
-    model_matrix[1][3] = 0.0;
-
-    model_matrix[2][0] = transform.at<float>(0,2);
-    model_matrix[2][1] = transform.at<float>(1,2);
-    model_matrix[2][2] = transform.at<float>(2,2);
-    model_matrix[2][3] = 0.0;
-
-    model_matrix[3][0] = transform.at<float>(0,3);
-    model_matrix[3][1] = transform.at<float>(1,3);
-    model_matrix[3][2] = transform.at<float>(2,3);
-    model_matrix[3][3] = 1.0;
+    model_matrix = glm_from_cv(transform);
 }
 
 Plane* add_object(const std::vector<ORB_SLAM3::MapPoint*> &curr_map_points, 

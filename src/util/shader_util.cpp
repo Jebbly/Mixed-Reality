@@ -1,4 +1,4 @@
-#include "shader_util.h"
+#include "util/shader_util.h"
 
 std::string read_shader(const std::string& shader_path) {
 	std::fstream file_stream;

@@ -24,9 +24,9 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::RGBD,false);
-    OfflineCamera camera{std::string(argv[3])};
-    Renderer renderer(width, height, std::string(argv[4]));
+    ORB_SLAM3::System SLAM(argv[1], argv[2], ORB_SLAM3::System::RGBD, false);
+    OfflineCamera camera(argv[3]);
+    Renderer renderer(width, height, argv[2], argv[4]);
     
     // Wait a little before we start processing the camera frames,
     // so that the renderer doesn't miss any of the frames.
@@ -64,7 +64,7 @@ int main(int argc, char* argv[])
         std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
 
-    renderer.set_close();
+    renderer.close();
     thread.join();
 
     return 0;

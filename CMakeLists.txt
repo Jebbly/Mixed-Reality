@@ -75,7 +75,8 @@ set(PROJECT_LIBS
 include_directories(include)
 set(PROJECT_FILES
     ${LIB_SOURCES}
-    src/shader_util.cpp
+    src/util/shader_util.cpp
+    src/util/matrix_util.cpp
     src/renderer.cpp
     src/offline_camera.cpp
     src/plane.cpp

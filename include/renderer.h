@@ -1,3 +1,6 @@
+#ifndef RENDERER_H
+#define RENDERER_H
+
 #include <iostream>
 #include <mutex>
 #include <vector>
@@ -15,16 +18,18 @@
 
 #include "geometry.h"
 #include "plane.h"
-#include "shader_util.h"
+#include "util/matrix_util.h"
+#include "util/shader_util.h"
 
 class Renderer
 {
 private:
+    // Properties of the renderer
     size_t m_width, m_height;
     GLFWwindow* m_window;
+    std::string m_shader_dir, m_camera_settings;
 
-    std::string m_shader_dir;
-
+    // Info needed to render or add an object
     std::mutex m_info_mutex;
     cv::Mat m_background_image;
     cv::Mat m_completed_depth;
@@ -32,42 +37,51 @@ private:
     std::vector<ORB_SLAM3::MapPoint*> m_map_points;
     std::vector<cv::KeyPoint> m_key_points;
 
-    GLuint m_quad_vao;
+    // OpenGL objects needed for rendering
+    GLuint m_image_shader, m_geometry_shader, m_deferred_shader;
+    GLuint m_geometry_fbo;
+    GLuint m_quad_vao, m_geometry_vao;
     GLuint m_background_texture;
-    bool m_image_updated;
-    GLuint m_background_shader;
-
     glm::mat4 m_persp;
-    GLuint m_object_vao;
-    GLuint m_object_shader;
 
+    // Other info needed for rendering
     std::vector<Plane*> m_planes;
 
+    // Flags to control renderer behavior
+    bool m_image_updated;
     bool m_draw_key_points;
     bool m_add_object;
     bool m_should_close;
 
-    void init_gl();
-
-    void init_ui();
-    void draw_ui();
-
-    void init_background_image();
-    void draw_background_image();
-
-    void init_objects();
-    void draw_object(size_t index);
-    void draw_objects();
-
-    void draw_key_points();
-
 public:
-    Renderer(size_t width, size_t height, const std::string& shader_dir);
+    // Some things need to be initialized/destroyed before/after the main loop
+    Renderer(size_t width, size_t height, const std::string &settings, const std::string &shaders);
     ~Renderer();
 
+    // Main event loop and mark when to close
     void run();
-    void set_info(const cv::Mat &rgb_image, const cv::Mat &depth_image, const cv::Mat &pose, 
+    void close();
+
+    // Pass info from another thread to the renderer thread
+    void set_info(const cv::Mat &rgb_image, const cv::Mat &depth_image, 
+                  const cv::Mat &pose, 
                   const std::vector<ORB_SLAM3::MapPoint*> &map_points,
                   const std::vector<cv::KeyPoint> &key_points);
-    void set_close();
+
+private:
+    // Initialization helpers
+    void init_window();
+    void init_gl();
+    void init_shaders();
+    void init_background_image();
+    void init_objects();
+    void init_ui();
+
+    // Renderer drawing helpers
+    void draw_key_points();
+    void draw_background_image();
+    void draw_objects();
+    void draw_ui();
 };
+
+#endif // RENDERER_H

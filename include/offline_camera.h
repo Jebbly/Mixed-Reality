@@ -1,3 +1,6 @@
+#ifndef OFFLINE_CAMERA_H
+#define OFFLINE_CAMERA_H
+
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -22,3 +25,5 @@ public:
     double get_timestamp(size_t index) const;
     int get_total_frames() const;
 };
+
+#endif // OFFLINE_CAMERA_H

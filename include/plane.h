@@ -10,6 +10,8 @@
 #include <opencv2/core/core.hpp>
 #include <MapPoint.h>
 
+#include "util/matrix_util.h"
+
 class Plane
 {
 public:
