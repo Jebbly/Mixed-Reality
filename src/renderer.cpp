@@ -456,6 +456,8 @@ void Renderer::run()
 
     std::unique_lock<std::mutex> lock(m_info_mutex, std::defer_lock);
 
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
     while (!m_should_close)
     {
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -501,6 +503,7 @@ void Renderer::run()
         if (m_should_close) {
             std::cout << "DEBUG INFO" << std::endl;
         }
+        
         draw_objects();
 
         lock.unlock();
