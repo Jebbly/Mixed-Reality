@@ -53,12 +53,12 @@ int main(int argc, char* argv[])
 
         cv::Mat camera_pose = ORB_SLAM3::Converter::toCvMat(SLAM.TrackRGBD(rgb_image, depth_image, timestamp).matrix());
         int state = SLAM.GetTrackingState();
-		std::vector<ORB_SLAM3::MapPoint*> vMPs = SLAM.GetTrackedMapPoints();
-		std::vector<cv::KeyPoint> vKeys = SLAM.GetTrackedKeyPointsUn();
+		std::vector<ORB_SLAM3::MapPoint*> map_points = SLAM.GetTrackedMapPoints();
+		std::vector<cv::KeyPoint> key_points = SLAM.GetTrackedKeyPointsUn();
 
         // This depth image isn't actually the correct one;
         // We want the completed one instead.
-        renderer.set_info(rgb_image, depth_image, camera_pose, vMPs, vKeys);
+        renderer.set_info(rgb_image, depth_image, camera_pose, map_points, key_points);
         
         // This controls the offline camera's speed 
         std::this_thread::sleep_for(std::chrono::milliseconds(16));
