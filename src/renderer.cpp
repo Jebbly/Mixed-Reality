@@ -32,7 +32,8 @@ void Renderer::run()
     init_objects();
     init_ui();
 
-    std::unique_lock<std::mutex> lock(m_info_mutex, std::defer_lock);
+    std::unique_lock<std::mutex> slam_lock(m_slam_mutex, std::defer_lock);
+    std::unique_lock<std::mutex> light_lock(m_light_mutex, std::defer_lock);
 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
@@ -42,7 +43,8 @@ void Renderer::run()
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        lock.lock();
+        slam_lock.lock();
+        light_lock.lock();
 
         if (m_draw_key_points) {
             draw_key_points();
@@ -64,7 +66,8 @@ void Renderer::run()
         glClear(GL_DEPTH_BUFFER_BIT);
         draw_objects();
 
-        lock.unlock();
+        slam_lock.unlock();
+        light_lock.unlock();
 
         // draw the UI on top of everything else
         draw_ui();
@@ -81,11 +84,11 @@ void Renderer::close()
     m_should_close = true;
 }
 
-void Renderer::set_info(const cv::Mat &rgb_image, const cv::Mat &depth_image, const cv::Mat &pose, 
+void Renderer::set_slam(const cv::Mat &rgb_image, const cv::Mat &depth_image, const cv::Mat &pose, 
                         const std::vector<ORB_SLAM3::MapPoint*> &map_points,
                         const std::vector<cv::KeyPoint> &key_points)
 {
-    std::lock_guard<std::mutex> lock(m_info_mutex);
+    std::lock_guard<std::mutex> lock(m_slam_mutex);
 
     m_background_image = rgb_image.clone();
     m_completed_depth = depth_image.clone();
@@ -95,6 +98,13 @@ void Renderer::set_info(const cv::Mat &rgb_image, const cv::Mat &depth_image, co
     m_key_points = key_points;
 
     m_image_updated = true;
+}
+
+void Renderer::set_lights(const std::vector<Light> &lights)
+{
+    std::lock_guard<std::mutex> lock(m_light_mutex);
+
+    m_lights = lights;
 }
 
 // Initialization helpers
@@ -333,6 +343,18 @@ void Renderer::draw_objects()
     glUseProgram(m_deferred_shader);
     glUniform1i(glGetUniformLocation(m_deferred_shader, "gPosition"), 0);
     glUniform1i(glGetUniformLocation(m_deferred_shader, "gNormal"), 1);
+
+    for (int i = 0; i < m_lights.size(); i++) {
+        std::string position = "lights[" + std::to_string(i) + "].position";
+        glUniform3fv(glGetUniformLocation(m_deferred_shader, position.c_str()), 1, &m_lights[i].position[0]);
+        
+        std::string color = "lights[" + std::to_string(i) + "].color";
+        glUniform3fv(glGetUniformLocation(m_deferred_shader, color.c_str()), 1, &m_lights[i].color[0]);
+        
+        std::string intensity = "lights[" + std::to_string(i) + "].intensity";
+        glUniform1f(glGetUniformLocation(m_deferred_shader, intensity.c_str()), m_lights[i].intensity);
+    }
+
     glBindVertexArray(m_quad_vao);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 }

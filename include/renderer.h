@@ -17,6 +17,7 @@
 #include <MapPoint.h>
 
 #include "geometry.h"
+#include "light.h"
 #include "plane.h"
 #include "util/matrix_util.h"
 #include "util/shader_util.h"
@@ -30,7 +31,7 @@ private:
     std::string m_shader_dir, m_camera_settings;
 
     // Info needed to render or add an object
-    std::mutex m_info_mutex;
+    std::mutex m_slam_mutex;
     cv::Mat m_background_image;
     cv::Mat m_completed_depth;
     cv::Mat m_camera_pose;
@@ -46,6 +47,8 @@ private:
     glm::mat4 m_persp;
 
     // Other info needed for rendering
+    std::mutex m_light_mutex;
+    std::vector<Light> m_lights;
     std::vector<Plane*> m_planes;
 
     // Flags to control renderer behavior
@@ -64,10 +67,12 @@ public:
     void close();
 
     // Pass info from another thread to the renderer thread
-    void set_info(const cv::Mat &rgb_image, const cv::Mat &depth_image, 
+    void set_slam(const cv::Mat &rgb_image, const cv::Mat &depth_image, 
                   const cv::Mat &pose, 
                   const std::vector<ORB_SLAM3::MapPoint*> &map_points,
                   const std::vector<cv::KeyPoint> &key_points);
+
+    void set_lights(const std::vector<Light> &lights);
 
 private:
     // Initialization helpers

@@ -80,6 +80,7 @@ set(PROJECT_FILES
     src/renderer.cpp
     src/offline_camera.cpp
     src/plane.cpp
+    src/light.cpp
     src/main.cpp
 )
 

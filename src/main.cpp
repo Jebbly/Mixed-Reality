@@ -10,8 +10,10 @@
 // from the actual image dimensions because
 // there are byte alignment requirements
 // when we copy the image data to OpenGL.
-const int width = 736;
-const int height = 456;
+const int WIDTH = 736;
+const int HEIGHT = 456;
+
+const int NUM_LIGHTS = 4;
 
 int main(int argc, char* argv[])
 {
@@ -26,7 +28,8 @@ int main(int argc, char* argv[])
 
     ORB_SLAM3::System SLAM(argv[1], argv[2], ORB_SLAM3::System::RGBD, false);
     OfflineCamera camera(argv[3]);
-    Renderer renderer(width, height, argv[2], argv[4]);
+    RandLightEstimator light_estimator(NUM_LIGHTS);
+    Renderer renderer(WIDTH, HEIGHT, argv[2], argv[4]);
     
     // Wait a little before we start processing the camera frames,
     // so that the renderer doesn't miss any of the frames.
@@ -40,25 +43,26 @@ int main(int argc, char* argv[])
         depth_image = camera.get_depth_image(i);
         timestamp = camera.get_timestamp(i);
 
-        // // can handle this better
-        cv::resize(rgb_image, rgb_image, cv::Size(width, height));
-        cv::resize(depth_image, depth_image, cv::Size(width, height));
-        if(image_scale != 1.0f)
-        {
-            int new_width = rgb_image.cols * image_scale;
-            int new_height = rgb_image.rows * image_scale;
-            cv::resize(rgb_image, rgb_image, cv::Size(new_width, new_height));
-            cv::resize(depth_image, depth_image, cv::Size(new_width, new_height));
-        }
+        cv::resize(rgb_image, rgb_image, cv::Size(WIDTH, HEIGHT));
+        cv::resize(depth_image, depth_image, cv::Size(WIDTH, HEIGHT));
 
+        // We always want to update the pose whenever we update the image
         cv::Mat camera_pose = ORB_SLAM3::Converter::toCvMat(SLAM.TrackRGBD(rgb_image, depth_image, timestamp).matrix());
         int state = SLAM.GetTrackingState();
 		std::vector<ORB_SLAM3::MapPoint*> map_points = SLAM.GetTrackedMapPoints();
 		std::vector<cv::KeyPoint> key_points = SLAM.GetTrackedKeyPointsUn();
 
+        // In this demo, we only estimate the light source once.
+        if (i == 0)
+        {
+            light_estimator.estimate_lights(rgb_image, depth_image);
+        }
+        std::vector<Light> lights = light_estimator.get_lights();
+
         // This depth image isn't actually the correct one;
         // We want the completed one instead.
-        renderer.set_info(rgb_image, depth_image, camera_pose, map_points, key_points);
+        renderer.set_slam(rgb_image, depth_image, camera_pose, map_points, key_points);
+        renderer.set_lights(lights);
         
         // This controls the offline camera's speed 
         std::this_thread::sleep_for(std::chrono::milliseconds(16));
