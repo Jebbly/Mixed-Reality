@@ -26,6 +26,7 @@ void Renderer::run()
 {
     init_window();
     init_gl();
+    init_framebuffer();
     init_shaders();
     init_background_image();
     init_objects();
@@ -35,6 +36,7 @@ void Renderer::run()
 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
+    glEnable(GL_DEPTH_TEST); 
     while (!m_should_close)
     {
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -134,6 +136,37 @@ void Renderer::init_gl()
     std::cout << "[RENDERER]: OpenGL initialized" << std::endl;
 }
 
+void Renderer::init_framebuffer()
+{
+    glGenFramebuffers(1, &m_geometry_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_geometry_fbo);
+
+    glGenTextures(1, &m_positions);
+    glBindTexture(GL_TEXTURE_2D, m_positions);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, m_width, m_height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_positions, 0);
+
+    glGenTextures(1, &m_normals);
+    glBindTexture(GL_TEXTURE_2D, m_normals);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, m_width, m_height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, m_normals, 0);
+
+    unsigned int attachments[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+    glDrawBuffers(2, attachments);
+
+    unsigned int rboDepth;
+    glGenRenderbuffers(1, &rboDepth);
+    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, m_width, m_height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+
+    std::cout << "[RENDERER]: Geometry framebuffer created" << std::endl;
+}
+
 void Renderer::init_shaders()
 {
     // Three separate shader programs are used:
@@ -159,10 +192,8 @@ void Renderer::init_background_image()
     glBindTexture(GL_TEXTURE_2D, m_background_texture);
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_width, m_height, 0, GL_RGB, GL_FLOAT, 0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
     std::vector<GLubyte> empty(3 * m_width * m_height, 0);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_width, m_height, GL_RGB, GL_UNSIGNED_BYTE, empty.data());
@@ -206,6 +237,13 @@ void Renderer::init_objects()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
     glEnableVertexAttribArray(0);
 
+    GLuint normal_buffer = 0;
+    glGenBuffers(1, &normal_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, normal_buffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cube_normals), cube_normals, GL_STATIC_DRAW);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+    glEnableVertexAttribArray(1);
+
     GLuint index_buffer = 0;
     glGenBuffers(1, &index_buffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
@@ -241,9 +279,7 @@ void Renderer::draw_key_points()
 
 void Renderer::draw_background_image() 
 {
-    // need a mutex here
-    // Get the most recently updated image
-    // if the image has changed
+    // Get the most recently updated image if it changed
     if (m_image_updated) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, m_background_texture);
@@ -251,6 +287,8 @@ void Renderer::draw_background_image()
         m_image_updated = false;
     }
 
+    // The background image is drawn directly to the screen framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(m_image_shader);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_background_texture);
@@ -265,7 +303,11 @@ void Renderer::draw_objects()
         return;
     }
 
-    // First bind the view and perspective models;
+    // First draw to a geometry buffer
+    glBindFramebuffer(GL_FRAMEBUFFER, m_geometry_fbo);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // First bind the view and perspective matrices;
     // only the model matrix changes between objects
     glUseProgram(m_geometry_shader);
     glBindVertexArray(m_geometry_vao);
@@ -278,8 +320,21 @@ void Renderer::draw_objects()
     for (size_t i = 0; i < m_planes.size(); i++) {
         Plane* plane = m_planes[i];
         glUniformMatrix4fv(glGetUniformLocation(m_geometry_shader, "model"), 1, GL_FALSE, &plane->model_matrix[0][0]);
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, nullptr);
+        glDrawElements(GL_TRIANGLES, sizeof(cube_indices) / sizeof(int), GL_UNSIGNED_INT, nullptr);
     }
+
+    // Then we use the data in the deferred shading pass
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_positions);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, m_normals);
+
+    glUseProgram(m_deferred_shader);
+    glUniform1i(glGetUniformLocation(m_deferred_shader, "gPosition"), 0);
+    glUniform1i(glGetUniformLocation(m_deferred_shader, "gNormal"), 1);
+    glBindVertexArray(m_quad_vao);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 }
 
 void Renderer::draw_ui()

@@ -1,8 +1,13 @@
 #version 330
 
-out vec4 fragColor;
+layout (location = 0) out vec3 position;
+layout (location = 1) out vec3 normal;
+
+in vec3 vPosition;
+in vec3 vNormal;
 
 void main()
 {
-    fragColor = vec4(0.5, 0.5, 0.5, 1.0);
+    position = vPosition;
+    normal = normalize(vNormal);
 }

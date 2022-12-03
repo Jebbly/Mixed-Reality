@@ -40,6 +40,7 @@ private:
     // OpenGL objects needed for rendering
     GLuint m_image_shader, m_geometry_shader, m_deferred_shader;
     GLuint m_geometry_fbo;
+    GLuint m_positions, m_normals;
     GLuint m_quad_vao, m_geometry_vao;
     GLuint m_background_texture;
     glm::mat4 m_persp;
@@ -72,6 +73,7 @@ private:
     // Initialization helpers
     void init_window();
     void init_gl();
+    void init_framebuffer();
     void init_shaders();
     void init_background_image();
     void init_objects();
