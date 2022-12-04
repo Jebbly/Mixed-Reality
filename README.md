@@ -5,7 +5,7 @@ This is my final course project for CS 445: Computational Photography.
 
 ## Organization
 
-The code is organized as a standard C++ project, where ``/include`` has all the function and class declarations and ``/src`` has all the definitions. Since this project uses Git submodules, those are cloned into ``/extern``.
+The code is organized as a standard C++ project, where CMake is used to configure the build. In this structure, ``/include`` has all the function and class declarations and ``/src`` has all the definitions. Since this project uses Git submodules, those are cloned into ``/extern``. 
 
 In ``light_estimation.h/cpp`` and ``depth_completion.h/cpp``, interfaces for light source estimation and depth completion are defined. Furthermore, these files also provide example implementations for both interfaces. Then ``renderer.h/cpp`` is the deferred renderer which incorporates the completed depth and estimated light when drawing objects.
 
