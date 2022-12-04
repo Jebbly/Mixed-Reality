@@ -16,9 +16,9 @@
 #include <opencv2/core/core.hpp>
 #include <MapPoint.h>
 
-#include "geometry.h"
 #include "light_estimation.h"
 #include "plane.h"
+#include "util/geometry.h"
 #include "util/matrix_util.h"
 #include "util/shader_util.h"
 

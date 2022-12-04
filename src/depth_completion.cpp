@@ -1,4 +1,4 @@
-#include "depth.h"
+#include "depth_completion.h"
 
 // Interface definition
 DepthCompleter::DepthCompleter()

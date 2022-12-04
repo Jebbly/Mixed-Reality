@@ -1,4 +1,4 @@
-#include "light.h"
+#include "light_estimation.h"
 
 // Interface definitions
 LightEstimator::LightEstimator(int num_lights) :
