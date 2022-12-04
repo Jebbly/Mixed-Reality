@@ -1,9 +1,5 @@
-#ifndef LIGHT_H
-#define LIGHT_H
-
-#include <iostream>
-#include <cstdlib>
-#include <vector>
+#ifndef LIGHT_ESTIMATION_H
+#define LIGHT_ESTIMATION_H
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -47,4 +43,4 @@ private:
 };
 
 
-#endif // LIGHT_H
+#endif // LIGHT_ESTIMATION_H

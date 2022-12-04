@@ -3,8 +3,8 @@
 #include <thread>
 #include "renderer.h"
 #include "offline_camera.h"
-#include "depth.h"
-#include "light.h"
+#include "depth_completion.h"
+#include "light_estimation.h"
 
 #include "System.h"
 
@@ -21,9 +21,6 @@ int main(int argc, char* argv[])
 {
     if(argc < 5)
     {
-        /*
-        ./mixed_reality /home/jebbly/Desktop/Mixed-Reality/ORB-SLAM/Vocabulary/ORBvoc.txt /home/jebbly/Desktop/Mixed-Reality/Mixed-Reality/config/ETH3D_resize.yaml /home/jebbly/Desktop/Mixed-Reality/eth3d_table-3 /home/jebbly/Desktop/Mixed-Reality/Mixed-Reality/shaders
-        */
         std::cerr << "Usage: ./mixed_reality [vocabulary_file] [settings_file] [dataset_directory] [shader_directory]" << std::endl;
         return -1;
     }

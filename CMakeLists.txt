@@ -80,8 +80,8 @@ set(PROJECT_FILES
     src/renderer.cpp
     src/offline_camera.cpp
     src/plane.cpp
-    src/depth.cpp
-    src/light.cpp
+    src/depth_completion.cpp
+    src/light_estimation.cpp
     src/main.cpp
 )
 

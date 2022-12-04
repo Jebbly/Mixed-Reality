@@ -1,12 +1,12 @@
-#ifndef DEPTH_H
-#define DEPTH_H
+#ifndef DEPTH_COMPLETION_H
+#define DEPTH_COMPLETION_H
 
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
 #include <vector>
 
-#include<opencv2/opencv.hpp>
+#include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -39,4 +39,4 @@ public:
     virtual void complete_depth_image(const cv::Mat &incomplete_depth_image);
 };
 
-#endif // DEPTH_H
+#endif // DEPTH_COMPLETION_H
