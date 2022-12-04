@@ -1,9 +1,27 @@
 #include "light.h"
 
-RandLightEstimator::RandLightEstimator(int num_lights) :
+// Interface definitions
+LightEstimator::LightEstimator(int num_lights) :
     m_num_lights{num_lights}
 {
-    // Dummy light estimator for now.
+
+}
+
+LightEstimator::~LightEstimator()
+{
+    
+}
+
+const std::vector<Light>& LightEstimator::get_lights() const
+{
+    return m_lights;
+}
+
+// Implementation definitions
+RandLightEstimator::RandLightEstimator(int num_lights) :
+    LightEstimator{num_lights}
+{
+
 }
 
 void RandLightEstimator::estimate_lights(const cv::Mat &rgb_image, const cv::Mat &depth_image)
@@ -19,11 +37,6 @@ void RandLightEstimator::estimate_lights(const cv::Mat &rgb_image, const cv::Mat
     }
 
     std::cout << "[LIGHT ESTIMATOR]: Light source estimation complete" << std::endl;
-}
-
-const std::vector<Light>& RandLightEstimator::get_lights() const
-{
-    return m_lights;
 }
 
 float RandLightEstimator::rand_float() const

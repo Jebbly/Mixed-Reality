@@ -30,13 +30,12 @@ int main(int argc, char* argv[])
 
     ORB_SLAM3::System SLAM(argv[1], argv[2], ORB_SLAM3::System::RGBD, false);
     OfflineCamera camera(argv[3]);
-    RandLightEstimator light_estimator(NUM_LIGHTS);
-    OfflineDepthCompleter depth_completer(argv[3]);
     Renderer renderer(WIDTH, HEIGHT, argv[2], argv[4]);
-    
-    // Wait a little before we start processing the camera frames,
-    // so that the renderer doesn't miss any of the frames.
     std::thread thread = std::thread(&Renderer::run, &renderer);
+
+    // Implementations of light source estimation and depth completion
+    LightEstimator* light_estimator = new RandLightEstimator(NUM_LIGHTS);
+    DepthCompleter* depth_completer = new OfflineDepthCompleter(argv[3]);
 
     float image_scale = SLAM.GetImageScale();
     cv::Mat rgb_image, depth_image;
@@ -58,12 +57,12 @@ int main(int argc, char* argv[])
         // In this demo, we only estimate the light source once.
         if (i == 0)
         {
-            light_estimator.estimate_lights(rgb_image, depth_image);
+            light_estimator->estimate_lights(rgb_image, depth_image);
         }
-        std::vector<Light> lights = light_estimator.get_lights();
+        std::vector<Light> lights = light_estimator->get_lights();
 
-        depth_completer.complete_depth_image(depth_image);
-        cv::Mat completed_depth = depth_completer.get_depth_image();
+        depth_completer->complete_depth_image(depth_image);
+        cv::Mat completed_depth = depth_completer->get_depth_image();
         cv::resize(completed_depth, completed_depth, cv::Size(WIDTH, HEIGHT));
 
         // This depth image isn't actually the correct one;
@@ -78,6 +77,9 @@ int main(int argc, char* argv[])
 
     renderer.close();
     thread.join();
+
+    delete light_estimator;
+    delete depth_completer;
 
     return 0;
 }

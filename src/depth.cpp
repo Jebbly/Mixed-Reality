@@ -1,6 +1,24 @@
 #include "depth.h"
 
+// Interface definition
+DepthCompleter::DepthCompleter()
+{
+
+}
+
+DepthCompleter::~DepthCompleter()
+{
+    
+}
+
+const cv::Mat& DepthCompleter::get_depth_image() const
+{
+    return m_completed_depth;
+}
+
+// Implementation definitions
 OfflineDepthCompleter::OfflineDepthCompleter(const std::string &dataset_dir) :
+    DepthCompleter{},
     m_dataset_dir{dataset_dir},
     m_image_idx{0}
 {
@@ -41,9 +59,4 @@ void OfflineDepthCompleter::complete_depth_image(const cv::Mat &incomplete_depth
     raw_depth.convertTo(buffer, CV_32F);
     m_completed_depth = buffer / 5000.0f;
     m_image_idx++;
-}
-
-const cv::Mat& OfflineDepthCompleter::get_depth_image()
-{
-    return m_completed_depth;
 }

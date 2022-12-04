@@ -18,17 +18,28 @@ struct Light
     float intensity;
 };
 
-class RandLightEstimator
+// Base class defines an interface for light source estimation.
+class LightEstimator 
 {
-private:
+protected:
     int m_num_lights;
     std::vector<Light> m_lights;
 
 public:
+    LightEstimator(int num_lights);
+    virtual ~LightEstimator();
+
+    virtual void estimate_lights(const cv::Mat &rgb_image, const cv::Mat &depth_image) = 0;
+    const std::vector<Light>& get_lights() const;
+};
+
+// This implementation randomly generates positions to approximate light sources.
+class RandLightEstimator : public LightEstimator
+{
+public:
     RandLightEstimator(int num_lights);
 
-    void estimate_lights(const cv::Mat &rgb_image, const cv::Mat &depth_image);
-    const std::vector<Light>& get_lights() const;
+    virtual void estimate_lights(const cv::Mat &rgb_image, const cv::Mat &depth_image);
 
 private:
     // Helper function to normalize random number generation
