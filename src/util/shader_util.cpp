@@ -29,7 +29,7 @@ int compile_shader(const std::string& shader_path, GLenum type) {
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
         glGetShaderInfoLog(shader, 512, NULL, log);
-        std::cerr << "Shader compilation failed: \n" << log << std::endl;
+        std::cerr << "Shader compilation failed for " << shader_path << ": \n" << log << std::endl;
     };
 
     return shader;

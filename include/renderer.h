@@ -32,23 +32,24 @@ private:
 
     // Info needed to render or add an object
     std::mutex m_slam_mutex;
-    cv::Mat m_background_image;
-    cv::Mat m_completed_depth;
     cv::Mat m_camera_pose;
     std::vector<ORB_SLAM3::MapPoint*> m_map_points;
     std::vector<cv::KeyPoint> m_key_points;
+
+    std::mutex m_image_mutex;
+    cv::Mat m_background_image;
+    cv::Mat m_completed_depth;
+
+    std::mutex m_light_mutex;
+    std::vector<Light> m_lights;
 
     // OpenGL objects needed for rendering
     GLuint m_image_shader, m_geometry_shader, m_deferred_shader;
     GLuint m_geometry_fbo;
     GLuint m_positions, m_normals;
     GLuint m_quad_vao, m_geometry_vao;
-    GLuint m_background_texture;
+    GLuint m_background_texture, m_depth_texture;
     glm::mat4 m_persp;
-
-    // Other info needed for rendering
-    std::mutex m_light_mutex;
-    std::vector<Light> m_lights;
     std::vector<Plane*> m_planes;
 
     // Flags to control renderer behavior
@@ -67,10 +68,11 @@ public:
     void close();
 
     // Pass info from another thread to the renderer thread
-    void set_slam(const cv::Mat &rgb_image, const cv::Mat &depth_image, 
-                  const cv::Mat &pose, 
+    void set_slam(const cv::Mat &pose, 
                   const std::vector<ORB_SLAM3::MapPoint*> &map_points,
                   const std::vector<cv::KeyPoint> &key_points);
+
+    void set_images(const cv::Mat& rgb_image, const cv::Mat &depth_image);
 
     void set_lights(const std::vector<Light> &lights);
 
@@ -80,7 +82,7 @@ private:
     void init_gl();
     void init_framebuffer();
     void init_shaders();
-    void init_background_image();
+    void init_images();
     void init_objects();
     void init_ui();
 

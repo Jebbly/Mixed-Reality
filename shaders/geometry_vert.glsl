@@ -9,6 +9,7 @@ uniform mat4 persp;
 
 out vec3 vPosition;
 out vec3 vNormal;
+out float vDepth;
 
 void main()
 {
@@ -16,5 +17,8 @@ void main()
     vPosition = world_position.xyz;
     vNormal = transpose(inverse(mat3(model))) * normal;
 
-    gl_Position = persp * view * world_position;
+    vec4 camera_position = view * world_position;
+    vDepth = camera_position.z;
+
+    gl_Position = persp * camera_position;
 }

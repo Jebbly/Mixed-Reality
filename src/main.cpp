@@ -3,6 +3,8 @@
 #include <thread>
 #include "renderer.h"
 #include "offline_camera.h"
+#include "depth.h"
+#include "light.h"
 
 #include "System.h"
 
@@ -29,6 +31,7 @@ int main(int argc, char* argv[])
     ORB_SLAM3::System SLAM(argv[1], argv[2], ORB_SLAM3::System::RGBD, false);
     OfflineCamera camera(argv[3]);
     RandLightEstimator light_estimator(NUM_LIGHTS);
+    OfflineDepthCompleter depth_completer(argv[3]);
     Renderer renderer(WIDTH, HEIGHT, argv[2], argv[4]);
     
     // Wait a little before we start processing the camera frames,
@@ -59,9 +62,14 @@ int main(int argc, char* argv[])
         }
         std::vector<Light> lights = light_estimator.get_lights();
 
+        depth_completer.complete_depth_image(depth_image);
+        cv::Mat completed_depth = depth_completer.get_depth_image();
+        cv::resize(completed_depth, completed_depth, cv::Size(WIDTH, HEIGHT));
+
         // This depth image isn't actually the correct one;
         // We want the completed one instead.
-        renderer.set_slam(rgb_image, depth_image, camera_pose, map_points, key_points);
+        renderer.set_slam(camera_pose, map_points, key_points);
+        renderer.set_images(rgb_image, completed_depth);
         renderer.set_lights(lights);
         
         // This controls the offline camera's speed 

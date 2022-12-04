@@ -28,11 +28,12 @@ void Renderer::run()
     init_gl();
     init_framebuffer();
     init_shaders();
-    init_background_image();
+    init_images();
     init_objects();
     init_ui();
 
     std::unique_lock<std::mutex> slam_lock(m_slam_mutex, std::defer_lock);
+    std::unique_lock<std::mutex> image_lock(m_image_mutex, std::defer_lock);
     std::unique_lock<std::mutex> light_lock(m_light_mutex, std::defer_lock);
 
     glEnable(GL_CULL_FACE);
@@ -44,6 +45,7 @@ void Renderer::run()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         slam_lock.lock();
+        image_lock.lock();
         light_lock.lock();
 
         if (m_draw_key_points) {
@@ -66,7 +68,10 @@ void Renderer::run()
         glClear(GL_DEPTH_BUFFER_BIT);
         draw_objects();
 
+        m_image_updated = false;
+
         slam_lock.unlock();
+        image_lock.unlock();
         light_lock.unlock();
 
         // draw the UI on top of everything else
@@ -84,19 +89,23 @@ void Renderer::close()
     m_should_close = true;
 }
 
-void Renderer::set_slam(const cv::Mat &rgb_image, const cv::Mat &depth_image, const cv::Mat &pose, 
+void Renderer::set_slam(const cv::Mat &pose, 
                         const std::vector<ORB_SLAM3::MapPoint*> &map_points,
                         const std::vector<cv::KeyPoint> &key_points)
 {
     std::lock_guard<std::mutex> lock(m_slam_mutex);
 
-    m_background_image = rgb_image.clone();
-    m_completed_depth = depth_image.clone();
     m_camera_pose = pose.clone();
-
     m_map_points = map_points;
     m_key_points = key_points;
+}
 
+void Renderer::set_images(const cv::Mat &rgb_image, const cv::Mat &depth_image)
+{
+    std::lock_guard<std::mutex> lock(m_image_mutex);
+
+    m_background_image = rgb_image.clone();
+    m_completed_depth = depth_image.clone();
     m_image_updated = true;
 }
 
@@ -117,7 +126,7 @@ void Renderer::init_window()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // Disable window resizing for now
-    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    // glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
     // Create window and make context current
     m_window = glfwCreateWindow(m_width, m_height, "Mixed Reality Demo", NULL, NULL);
@@ -194,19 +203,28 @@ void Renderer::init_shaders()
     std::cout << "[RENDERER]: Shaders compiled and linked" << std::endl;
 }
 
-void Renderer::init_background_image()
+void Renderer::init_images()
 {
-    // Configure a texture in OpenGL to store the background image
+    // Configure textures in OpenGL to store the background and depth
     glGenTextures(1, &m_background_texture);
-    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_background_texture);
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_width, m_height, 0, GL_RGB, GL_FLOAT, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-    std::vector<GLubyte> empty(3 * m_width * m_height, 0);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_width, m_height, GL_RGB, GL_UNSIGNED_BYTE, empty.data());
+    std::vector<GLubyte> empty_rgb(3 * m_width * m_height, 255);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_width, m_height, GL_RGB, GL_UNSIGNED_BYTE, empty_rgb.data());
+
+    glGenTextures(1, &m_depth_texture);
+    glBindTexture(GL_TEXTURE_2D, m_depth_texture);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, m_width, m_height, 0, GL_RED, GL_FLOAT, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    std::vector<GLfloat> empty_depth(m_width * m_height, 1.0f);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_width, m_height, GL_RED, GL_FLOAT, empty_depth.data());
 
     // Draw a screen quad to sample the background image
     glGenVertexArrays(1, &m_quad_vao);
@@ -291,10 +309,8 @@ void Renderer::draw_background_image()
 {
     // Get the most recently updated image if it changed
     if (m_image_updated) {
-        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, m_background_texture);
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_width, m_height, GL_BGR, GL_UNSIGNED_BYTE, m_background_image.data);
-        m_image_updated = false;
     }
 
     // The background image is drawn directly to the screen framebuffer
@@ -339,10 +355,18 @@ void Renderer::draw_objects()
     glBindTexture(GL_TEXTURE_2D, m_positions);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, m_normals);
+    if (m_image_updated) {
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, m_depth_texture);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_width, m_height, GL_RED, GL_FLOAT, m_completed_depth.data);
+    }
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, m_depth_texture);
 
     glUseProgram(m_deferred_shader);
     glUniform1i(glGetUniformLocation(m_deferred_shader, "gPosition"), 0);
     glUniform1i(glGetUniformLocation(m_deferred_shader, "gNormal"), 1);
+    glUniform1i(glGetUniformLocation(m_deferred_shader, "depthTexture"), 2);
 
     for (int i = 0; i < m_lights.size(); i++) {
         std::string position = "lights[" + std::to_string(i) + "].position";
