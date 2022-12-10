@@ -1,12 +1,13 @@
 #include <chrono>
 #include <iostream>
 #include <thread>
+
+#include <System.h> // ORB-SLAM system needed for tracking
+
 #include "renderer.h"
 #include "camera_stream.h"
 #include "depth_completion.h"
 #include "light_estimation.h"
-
-#include "System.h"
 
 // The window dimensions are slightly different
 // from the actual image dimensions because
