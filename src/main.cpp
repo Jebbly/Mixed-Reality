@@ -15,7 +15,7 @@
 const int WIDTH = 736;
 const int HEIGHT = 456;
 
-const int NUM_FRAMES = 1180;
+const int NUM_FRAMES = 1180; // Number of frames used in the offline camera stream
 const int NUM_LIGHTS = 4;
 
 int main(int argc, char* argv[])
@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
     ORB_SLAM3::System SLAM(argv[1], argv[2], ORB_SLAM3::System::RGBD, false);
     Renderer renderer(WIDTH, HEIGHT, argv[2], argv[4]);
     std::thread thread = std::thread(&Renderer::run, &renderer);
-    std::this_thread::sleep_for(std::chrono::milliseconds(16));
+    std::this_thread::sleep_for(std::chrono::milliseconds(16)); // Arbitrary time for the renderer to initialize
 
     // Implementations of light source estimation and depth completion
     CameraStream* camera = new OfflineCameraStream(argv[3]);
@@ -69,6 +69,7 @@ int main(int argc, char* argv[])
 
         const std::chrono::time_point<std::chrono::system_clock> end = std::chrono::system_clock::now();
 
+        // If the depth completion and light estimation took longer than 17 ms (~60 FPS), log it
         int milliseconds_passed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
         if (milliseconds_passed > 17) {
             std::cout << "[MAIN LOOP]: Missed 17 ms deadline for depth completion and light estimation by " << milliseconds_passed - 17 << " milliseconds" << std::endl; 

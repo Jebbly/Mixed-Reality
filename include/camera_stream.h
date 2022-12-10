@@ -15,6 +15,8 @@ public:
     CameraStream();
     ~CameraStream();
 
+    // The camera stream is expected to return
+    // the RGB image, depth image, and timestamp
     virtual std::tuple<cv::Mat, cv::Mat, double> get_stream() = 0;
 };
 

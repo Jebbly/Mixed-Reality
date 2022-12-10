@@ -22,6 +22,7 @@ OfflineDepthCompleter::OfflineDepthCompleter(const std::string &dataset_dir) :
     m_dataset_dir{dataset_dir},
     m_image_idx{0}
 {
+    // We use the same association files as in camera_stream.cpp, but modify it to read the final depth images
     std::string associated_files = dataset_dir + "/associated.txt";
 
     std::cout << "[OFFLINE DEPTH COMPLETER]: Reading associations from " << associated_files << std::endl;
@@ -67,8 +68,6 @@ void OfflineDepthCompleter::complete_depth_image(const cv::Mat &incomplete_depth
         cv::Mat buffer = raw_depth;
         raw_depth.convertTo(buffer, CV_32F);
         m_completed_depth = buffer / 5000.0f;
-    } else {
-        m_completed_depth = cv::Mat();
-    }
+    } 
     m_image_idx++;
 }

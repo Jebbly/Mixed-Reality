@@ -12,12 +12,12 @@ CameraStream::~CameraStream()
 }
 
 // Implementation definitions
-
 OfflineCameraStream::OfflineCameraStream(const std::string& dataset_dir) :
     CameraStream{},
     m_dataset_dir{dataset_dir},
     m_index{0}
 {
+    // The association files lists out the name of the images used (with timestamps)
     std::string associated_files = dataset_dir + "/associated.txt";
 
     std::cout << "[OFFLINE CAMERA]: Reading associations from " << associated_files << std::endl;
