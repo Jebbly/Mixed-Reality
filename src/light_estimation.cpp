@@ -19,13 +19,19 @@ const std::vector<Light>& LightEstimator::get_lights() const
 
 // Implementation definitions
 RandLightEstimator::RandLightEstimator(int num_lights) :
-    LightEstimator{num_lights}
+    LightEstimator{num_lights},
+    m_estimated{false}
 {
 
 }
 
 void RandLightEstimator::estimate_lights(const cv::Mat &rgb_image, const cv::Mat &depth_image)
 {
+    // This implementation only estimates the light sources once.
+    if (m_estimated) {
+        return;
+    }
+
     // RGB and depth images may be used in certain light estimation models,
     // but this light estimator just approximates the color and randomizes positions.
     for (int i = 0; i < m_num_lights; i++) {
@@ -35,6 +41,7 @@ void RandLightEstimator::estimate_lights(const cv::Mat &rgb_image, const cv::Mat
         light.intensity = abs(rand_float()) * 5.0f;
         m_lights.push_back(light);
     }
+    m_estimated = true;
 
     std::cout << "[LIGHT ESTIMATOR]: Light source estimation complete" << std::endl;
 }

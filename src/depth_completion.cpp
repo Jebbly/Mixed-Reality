@@ -31,8 +31,14 @@ OfflineDepthCompleter::OfflineDepthCompleter(const std::string &dataset_dir) :
     }
 
     std::string line;
+    int index = 0;
     while (std::getline(associations, line))
     {
+        if (index < 2) {
+            index++;
+            continue;
+        }
+
         if(!line.empty())
         {
             std::stringstream ss;
@@ -45,8 +51,9 @@ OfflineDepthCompleter::OfflineDepthCompleter(const std::string &dataset_dir) :
             ss >> rgb_image;
             ss >> t;
             ss >> depth_image;
-            m_depth_images.push_back(depth_image);
+            m_depth_images.push_back("final_" + depth_image);
         }
+        index++;
     }
 
     std::cout << "[OFFLINE DEPTH COMPLETER]: Read " << m_depth_images.size() << " depth images" << std::endl;
@@ -54,9 +61,14 @@ OfflineDepthCompleter::OfflineDepthCompleter(const std::string &dataset_dir) :
 
 void OfflineDepthCompleter::complete_depth_image(const cv::Mat &incomplete_depth_image)
 {
-    cv::Mat raw_depth = cv::imread(m_dataset_dir + "/" + m_depth_images[m_image_idx], cv::IMREAD_UNCHANGED);
-    cv::Mat buffer = raw_depth;
-    raw_depth.convertTo(buffer, CV_32F);
-    m_completed_depth = buffer / 5000.0f;
+    if (m_image_idx >= 2) {
+        // This implementation requires 2 frames to initialize
+        cv::Mat raw_depth = cv::imread(m_dataset_dir + "/" + m_depth_images[m_image_idx - 2], cv::IMREAD_UNCHANGED);
+        cv::Mat buffer = raw_depth;
+        raw_depth.convertTo(buffer, CV_32F);
+        m_completed_depth = buffer / 5000.0f;
+    } else {
+        m_completed_depth = cv::Mat();
+    }
     m_image_idx++;
 }

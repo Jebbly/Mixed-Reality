@@ -9,21 +9,28 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-class OfflineCamera
+class CameraStream
+{
+public:
+    CameraStream();
+    ~CameraStream();
+
+    virtual std::tuple<cv::Mat, cv::Mat, double> get_stream() = 0;
+};
+
+class OfflineCameraStream : public CameraStream
 {
 private:
     std::string m_dataset_dir;
     std::vector<std::string> m_rgb_images;
     std::vector<std::string> m_depth_images;
     std::vector<double> m_timestamps;
+    int m_index;
 
 public:
-    OfflineCamera(const std::string& dataset_dir);
+    OfflineCameraStream(const std::string& dataset_dir);
 
-    cv::Mat get_rgb_image(size_t index) const;
-    cv::Mat get_depth_image(size_t index) const;
-    double get_timestamp(size_t index) const;
-    int get_total_frames() const;
+    virtual std::tuple<cv::Mat, cv::Mat, double> get_stream();
 };
 
-#endif // OFFLINE_CAMERA_H
+#endif // CAMERA_STREAM_H

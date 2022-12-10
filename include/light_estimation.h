@@ -36,6 +36,9 @@ public:
 // This implementation randomly generates positions to approximate light sources.
 class RandLightEstimator : public LightEstimator
 {
+private:
+    bool m_estimated;
+    
 public:
     RandLightEstimator(int num_lights);
 

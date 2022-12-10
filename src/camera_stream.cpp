@@ -1,7 +1,22 @@
-#include "offline_camera.h"
+#include "camera_stream.h"
 
-OfflineCamera::OfflineCamera(const std::string& dataset_dir) :
-    m_dataset_dir{dataset_dir}
+// Interface definition
+CameraStream::CameraStream()
+{
+
+}
+
+CameraStream::~CameraStream()
+{
+    
+}
+
+// Implementation definitions
+
+OfflineCameraStream::OfflineCameraStream(const std::string& dataset_dir) :
+    CameraStream{},
+    m_dataset_dir{dataset_dir},
+    m_index{0}
 {
     std::string associated_files = dataset_dir + "/associated.txt";
 
@@ -36,22 +51,12 @@ OfflineCamera::OfflineCamera(const std::string& dataset_dir) :
     std::cout << "[OFFLINE CAMERA]: Read " << m_rgb_images.size() << " dataset images" << std::endl;
 }
 
-cv::Mat OfflineCamera::get_rgb_image(size_t index) const
+std::tuple<cv::Mat, cv::Mat, double> OfflineCameraStream::get_stream()
 {
-    return cv::imread(m_dataset_dir + "/" + m_rgb_images[index], cv::IMREAD_UNCHANGED);
-}
+    cv::Mat rgb = cv::imread(m_dataset_dir + "/" + m_rgb_images[m_index], cv::IMREAD_UNCHANGED);
+    cv::Mat depth = cv::imread(m_dataset_dir + "/" + m_depth_images[m_index], cv::IMREAD_UNCHANGED);
+    double timestamp = m_timestamps[m_index];
+    m_index++;
 
-cv::Mat OfflineCamera::get_depth_image(size_t index) const
-{
-    return cv::imread(m_dataset_dir + "/" + m_depth_images[index], cv::IMREAD_UNCHANGED);
-}
-
-double OfflineCamera::get_timestamp(size_t index) const
-{
-    return m_timestamps[index];
-}
-
-int OfflineCamera::get_total_frames() const
-{
-    return m_rgb_images.size();
+    return std::tuple<cv::Mat, cv::Mat, double>(rgb, depth, timestamp);
 }

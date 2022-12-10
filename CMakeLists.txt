@@ -77,9 +77,9 @@ set(PROJECT_FILES
     ${LIB_SOURCES}
     src/util/shader_util.cpp
     src/util/matrix_util.cpp
-    src/renderer.cpp
-    src/offline_camera.cpp
     src/plane.cpp
+    src/renderer.cpp
+    src/camera_stream.cpp
     src/depth_completion.cpp
     src/light_estimation.cpp
     src/main.cpp
