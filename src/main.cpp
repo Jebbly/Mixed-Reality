@@ -86,6 +86,7 @@ int main(int argc, char* argv[])
     renderer.close();
     thread.join();
 
+    delete camera;
     delete light_estimator;
     delete depth_completer;
 
