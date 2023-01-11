@@ -116,6 +116,11 @@ void Renderer::set_lights(const std::vector<Light> &lights)
     m_lights = lights;
 }
 
+static void glfw_resize_callback(GLFWwindow* window, int width, int height)
+{
+    glViewport(0, 0, width, height);
+}
+
 // Initialization helpers
 void Renderer::init_window()
 {
@@ -126,7 +131,7 @@ void Renderer::init_window()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // Disable window resizing for now
-    // glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
 
     // Create window and make context current
     m_window = glfwCreateWindow(m_width, m_height, "Mixed Reality Demo", NULL, NULL);
@@ -134,6 +139,10 @@ void Renderer::init_window()
     {
         std::cerr << "[RENDERER]: GLFW Error" << std::endl;
     }
+
+    glfwSetWindowAspectRatio(m_window, m_width, m_height);
+    glfwSetWindowSizeCallback(m_window, glfw_resize_callback);
+    glfwSetWindowSizeLimits(m_window, m_width, m_height, GLFW_DONT_CARE, GLFW_DONT_CARE);
 
     std::cout << "[RENDERER]: Window created" << std::endl;
 }
@@ -307,6 +316,11 @@ void Renderer::draw_key_points()
 
 void Renderer::draw_background_image() 
 {
+    // Render this to the window's resolution
+    int width, height;
+    glfwGetWindowSize(m_window, &width, &height);
+    glViewport(0, 0, width, height);
+
     // Get the most recently updated image if it changed
     if (m_image_updated) {
         glBindTexture(GL_TEXTURE_2D, m_background_texture);
@@ -329,6 +343,9 @@ void Renderer::draw_objects()
         return;
     }
 
+    // We first render everything at the camera's resolution
+    glViewport(0, 0, m_width, m_height);
+
     // First draw to a geometry buffer
     glBindFramebuffer(GL_FRAMEBUFFER, m_geometry_fbo);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -349,7 +366,12 @@ void Renderer::draw_objects()
         glDrawElements(GL_TRIANGLES, sizeof(cube_indices) / sizeof(int), GL_UNSIGNED_INT, nullptr);
     }
 
-    // Then we use the data in the deferred shading pass
+    // Then we use the data in the deferred shading pass,
+    // which should be at the window's resolution
+    int width, height;
+    glfwGetWindowSize(m_window, &width, &height);
+    glViewport(0, 0, width, height);
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_positions);
