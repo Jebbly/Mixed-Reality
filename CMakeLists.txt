@@ -85,13 +85,13 @@ set(PROJECT_LIBS
 include_directories(include)
 set(PROJECT_FILES
     ${LIB_SOURCES}
+    src/util/geometry_util.cpp
     src/util/shader_util.cpp
     src/util/matrix_util.cpp
-    src/plane.cpp
-    src/renderer.cpp
     src/camera_stream.cpp
     src/depth_completion.cpp
     src/light_estimation.cpp
+    src/renderer.cpp
     src/main.cpp
 )
 

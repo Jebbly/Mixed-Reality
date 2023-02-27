@@ -11,12 +11,7 @@
 #include <glm/gtx/string_cast.hpp>
 #include <opencv2/core/core.hpp>
 
-struct Light
-{
-    glm::vec3 position;
-    glm::vec3 color;
-    float intensity;
-};
+#include "util/shader_util.h"
 
 // Base class defines an interface for light source estimation.
 class LightEstimator 
