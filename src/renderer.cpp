@@ -186,11 +186,11 @@ void Renderer::init_framebuffer()
     unsigned int attachments[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
     glDrawBuffers(2, attachments);
 
-    unsigned int rboDepth;
-    glGenRenderbuffers(1, &rboDepth);
-    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+    unsigned int rbo_depth;
+    glGenRenderbuffers(1, &rbo_depth);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo_depth);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, m_width, m_height);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo_depth);
 
     std::cout << "[RENDERER]: Geometry framebuffer created" << std::endl;
 }
