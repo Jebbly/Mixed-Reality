@@ -26,6 +26,14 @@ include_directories(extern/imgui)
 include_directories(extern/imgui/backends)
 message(STATUS "Using ImGui Directory: extern/imgui")
 
+add_library(tinyobjloader INTERFACE)
+target_include_directories(tinyobjloader INTERFACE extern/tinyobjloader)
+message(STATUS "Using tinyobjloader Directory: extern/tinyobjloader")
+
+add_library(stb INTERFACE)
+target_include_directories(stb INTERFACE extern/stb)
+message(STATUS "Using stb Directory: extern/stb")
+
 set(LIB_SOURCES
     extern/glad/src/glad.c
     extern/imgui/imgui.cpp
@@ -69,6 +77,8 @@ set(PROJECT_LIBS
     g2o
     glfw
     ${GLFW_LIBRARIES}
+    tinyobjloader
+    stb
 )
 
 # Setup source code
