@@ -52,7 +52,7 @@ OfflineDepthCompleter::OfflineDepthCompleter(const std::string &dataset_dir) :
             ss >> rgb_image;
             ss >> t;
             ss >> depth_image;
-            m_depth_images.push_back("final_raycast_" + depth_image);
+            m_depth_images.push_back("final_" + depth_image);
         }
         index++;
     }
