@@ -52,7 +52,7 @@ OfflineDepthCompleter::OfflineDepthCompleter(const std::string &dataset_dir) :
             ss >> rgb_image;
             ss >> t;
             ss >> depth_image;
-            m_depth_images.push_back("final_" + depth_image);
+            m_depth_images.push_back("final_raycast_" + depth_image);
         }
         
         index++;
@@ -68,7 +68,13 @@ void OfflineDepthCompleter::complete_depth_image(const cv::Mat &incomplete_depth
         cv::Mat raw_depth = cv::imread(m_dataset_dir + "/" + m_depth_images[m_image_idx - 2], cv::IMREAD_UNCHANGED);
         cv::Mat buffer = raw_depth;
         raw_depth.convertTo(buffer, CV_32F);
-        m_completed_depth = buffer / 5000.0f;
+
+        // Replace 0 values with a high value (arbitrarily set to 10.0f)
+        cv::Mat mask = (buffer == 0);
+        cv::Mat mask_buffer = mask;
+        mask.convertTo(mask_buffer, CV_32F);
+
+        m_completed_depth = 10.0f * mask_buffer + buffer / 5000.0f;
     } 
     m_image_idx++;
 }
