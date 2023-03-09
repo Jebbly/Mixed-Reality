@@ -54,3 +54,35 @@ int create_program(const std::string& vertex_path, const std::string& fragment_p
 
     return program;
 }
+
+Shader::Shader(const std::string &vertex_path, const std::string &fragment_path)
+{
+    m_id = create_program(vertex_path, fragment_path);
+}
+
+void Shader::use()
+{
+    glUseProgram(m_id);
+}
+
+// Uniform setters
+void Shader::set_int(const std::string &name, int value) const
+{
+    glUniform1i(glGetUniformLocation(m_id, name.c_str()), value); 
+}
+
+void Shader::set_float(const std::string &name, float value) const
+{
+    glUniform1f(glGetUniformLocation(m_id, name.c_str()), value); 
+}
+
+
+void Shader::set_vec3(const std::string &name, const glm::vec3 &value) const
+{
+    glUniform3fv(glGetUniformLocation(m_id, name.c_str()), 1, &value[0]);
+}
+
+void Shader::set_mat4(const std::string &name, const glm::mat4 &value) const
+{
+    glUniformMatrix4fv(glGetUniformLocation(m_id, name.c_str()), 1, GL_FALSE, &value[0][0]);
+}

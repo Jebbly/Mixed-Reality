@@ -43,7 +43,7 @@ private:
     std::vector<Light> m_lights;
 
     // OpenGL objects needed for rendering
-    GLuint m_image_shader, m_geometry_shader, m_deferred_shader;
+    Shader m_image_shader, m_geometry_shader, m_deferred_shader;
     GLuint m_geometry_fbo;
     GLuint m_positions, m_normals;
     GLuint m_quad_vao, m_geometry_vao;

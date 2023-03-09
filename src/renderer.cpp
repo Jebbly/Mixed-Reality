@@ -167,19 +167,20 @@ void Renderer::init_gl()
 
 void Renderer::init_framebuffer()
 {
+    // Render the objects at twice the resolution for higher quality
     glGenFramebuffers(1, &m_geometry_fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, m_geometry_fbo);
 
     glGenTextures(1, &m_positions);
     glBindTexture(GL_TEXTURE_2D, m_positions);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, m_width, m_height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, 2 * m_width, 2 * m_height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_positions, 0);
 
     glGenTextures(1, &m_normals);
     glBindTexture(GL_TEXTURE_2D, m_normals);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, m_width, m_height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, 2 * m_width, 2 * m_height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, m_normals, 0);
@@ -190,7 +191,7 @@ void Renderer::init_framebuffer()
     unsigned int rbo_depth;
     glGenRenderbuffers(1, &rbo_depth);
     glBindRenderbuffer(GL_RENDERBUFFER, rbo_depth);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, m_width, m_height);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 2 * m_width, 2 * m_height);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo_depth);
 
     std::cout << "[RENDERER]: Geometry framebuffer created" << std::endl;
@@ -201,14 +202,14 @@ void Renderer::init_shaders()
     // Three separate shader programs are used:
     // 1 for drawing the RGB image in the background,
     // and 2 for the deferred rendering pipeline.
-    m_image_shader = create_program(m_shader_dir + "/background_vert.glsl", 
-                                    m_shader_dir + "/background_frag.glsl");
+    m_image_shader = Shader(m_shader_dir + "/background_vert.glsl", 
+                            m_shader_dir + "/background_frag.glsl");
     
-    m_geometry_shader = create_program(m_shader_dir + "/geometry_vert.glsl", 
-                                       m_shader_dir + "/geometry_frag.glsl");
+    m_geometry_shader = Shader(m_shader_dir + "/geometry_vert.glsl", 
+                               m_shader_dir + "/geometry_frag.glsl");
 
-    m_deferred_shader = create_program(m_shader_dir + "/deferred_vert.glsl", 
-                                       m_shader_dir + "/deferred_frag.glsl");
+    m_deferred_shader = Shader(m_shader_dir + "/deferred_vert.glsl", 
+                               m_shader_dir + "/deferred_frag.glsl");
 
     std::cout << "[RENDERER]: Shaders compiled and linked" << std::endl;
 }
@@ -330,10 +331,10 @@ void Renderer::draw_background_image()
 
     // The background image is drawn directly to the screen framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glUseProgram(m_image_shader);
+    m_image_shader.use();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_background_texture);
-    glUniform1i(glGetUniformLocation(m_image_shader, "backgroundImage"), 0); 
+    m_image_shader.set_int("backgroundImage", 0);
     glBindVertexArray(m_quad_vao);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 }
@@ -345,7 +346,7 @@ void Renderer::draw_objects()
     }
 
     // We first render everything at the camera's resolution
-    glViewport(0, 0, m_width, m_height);
+    glViewport(0, 0, 2 * m_width, 2 * m_height);
 
     // First draw to a geometry buffer
     glBindFramebuffer(GL_FRAMEBUFFER, m_geometry_fbo);
@@ -356,17 +357,17 @@ void Renderer::draw_objects()
 
     // First bind the view and perspective matrices;
     // only the model matrix changes between objects
-    glUseProgram(m_geometry_shader);
+    m_geometry_shader.use();
     glBindVertexArray(m_geometry_vao);
 
-    glUniformMatrix4fv(glGetUniformLocation(m_geometry_shader, "persp"), 1, GL_FALSE, &m_persp[0][0]);
+    m_geometry_shader.set_mat4("persp", m_persp);
 
     glm::mat4 view = glm_from_cv(m_camera_pose);
-    glUniformMatrix4fv(glGetUniformLocation(m_geometry_shader, "view"), 1, GL_FALSE, &view[0][0]);
+    m_geometry_shader.set_mat4("view", view);
 
     for (size_t i = 0; i < m_planes.size(); i++) {
         Plane* plane = m_planes[i];
-        glUniformMatrix4fv(glGetUniformLocation(m_geometry_shader, "model"), 1, GL_FALSE, &plane->model_matrix[0][0]);
+        m_geometry_shader.set_mat4("model", plane->model_matrix);
         glDrawElements(GL_TRIANGLES, sizeof(cube_indices) / sizeof(int), GL_UNSIGNED_INT, nullptr);
     }
 
@@ -389,20 +390,15 @@ void Renderer::draw_objects()
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, m_depth_texture);
 
-    glUseProgram(m_deferred_shader);
-    glUniform1i(glGetUniformLocation(m_deferred_shader, "gPosition"), 0);
-    glUniform1i(glGetUniformLocation(m_deferred_shader, "gNormal"), 1);
-    glUniform1i(glGetUniformLocation(m_deferred_shader, "depthTexture"), 2);
+    m_deferred_shader.use();
+    m_deferred_shader.set_int("gPosition", 0);
+    m_deferred_shader.set_int("gNormal", 1);
+    m_deferred_shader.set_int("depthTexture", 2);
 
     for (int i = 0; i < m_lights.size(); i++) {
-        std::string position = "lights[" + std::to_string(i) + "].position";
-        glUniform3fv(glGetUniformLocation(m_deferred_shader, position.c_str()), 1, &m_lights[i].position[0]);
-        
-        std::string color = "lights[" + std::to_string(i) + "].color";
-        glUniform3fv(glGetUniformLocation(m_deferred_shader, color.c_str()), 1, &m_lights[i].color[0]);
-        
-        std::string intensity = "lights[" + std::to_string(i) + "].intensity";
-        glUniform1f(glGetUniformLocation(m_deferred_shader, intensity.c_str()), m_lights[i].intensity);
+        m_deferred_shader.set_vec3("lights[" + std::to_string(i) + "].position", m_lights[i].position);
+        m_deferred_shader.set_vec3("lights[" + std::to_string(i) + "].color", m_lights[i].color);
+        m_deferred_shader.set_float("lights[" + std::to_string(i) + "].intensity", m_lights[i].intensity);
     }
 
     glBindVertexArray(m_quad_vao);
