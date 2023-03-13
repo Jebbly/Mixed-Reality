@@ -26,9 +26,14 @@ include_directories(extern/imgui)
 include_directories(extern/imgui/backends)
 message(STATUS "Using ImGui Directory: extern/imgui")
 
-add_library(tinyobjloader INTERFACE)
-target_include_directories(tinyobjloader INTERFACE extern/tinyobjloader)
-message(STATUS "Using tinyobjloader Directory: extern/tinyobjloader")
+option(BUILD_SHARED_LIBS OFF)
+option(ASSIMP_BUILD_TESTS OFF)
+option(ASSIMP_NO_EXPORT ON)
+option(ASSIMP_BUILD_TESTS OFF)
+option(ASSIMP_BUILD_ASSIMP_TOOLS OFF)
+add_subdirectory(extern/assimp)
+include_directories(extern/assimp)
+message(STATUS "Using assimp Directory: extern/assimp")
 
 add_library(stb INTERFACE)
 target_include_directories(stb INTERFACE extern/stb)
@@ -77,7 +82,7 @@ set(PROJECT_LIBS
     g2o
     glfw
     ${GLFW_LIBRARIES}
-    tinyobjloader
+    assimp
     stb
 )
 
