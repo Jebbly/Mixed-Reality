@@ -4,6 +4,7 @@ in vec2 vTexcoord;
 
 uniform sampler2D gPosition;
 uniform sampler2D gNormal;
+uniform sampler2D gDiffSpec;
 uniform sampler2D depthTexture;
 
 out vec4 fragColor;
@@ -17,30 +18,48 @@ struct Light {
 const int NUM_LIGHTS = 4;
 uniform Light lights[NUM_LIGHTS];
 
-const vec3 diffuse = vec3(0.5f, 0.5f, 0.5f);
+uniform vec3 viewPos;
 
 void main()
 {
+    vec4 position = texture(gPosition, vTexcoord);
+    vec3 normal = texture(gNormal, vTexcoord).rgb;
+    vec4 diff_spec = texture(gDiffSpec, vTexcoord, rgb);
+
     // If the normal has length 0, we can assume that
     // there's not an actual object there.
-    vec3 normal = texture(gNormal, vTexcoord).rgb;
     if (length(normal) == 0.0) discard;
 
-    vec4 position = texture(gPosition, vTexcoord);
-    vec3 world_position = position.xyz;
+    // Check if the virtual object should be occluded
+    // by any real objects or not.
     float depth = position.w;
-
-    vec2 depth_texcoord = vec2(vTexcoord.x, 1.0f - vTexcoord.y);
-    float image_depth = texture(depthTexture, depth_texcoord).r;
+    float image_depth = texture(depthTexture, vec2(vTexcoord.x, 1.0f - vTexcoord.y)).r;
     if (image_depth < depth) discard;
 
+    // If the virtual object is un-occluded, we proceed with shading.
+    vec3 world_pos = position.xyz;
+    vec3 diffuse = diff_spec.rgb;
+    float specularity = diff_spec.a;
+    vec3 view_dir = normalize(viewPos - world_pos);
+
+    // Add up the contributions from each light
     vec3 color = vec3(0.0f);
     for (int i = 0; i < NUM_LIGHTS; i++) {
-        vec3 light_dir = normalize(lights[i].position - world_position);
-        vec3 diffuse = max(dot(normal, light_dir), 0.0f) * diffuse * lights[i].color;
+        vec3 light_dir = normalize(lights[i].position - world_pos);
+        float light_dist = length(lights[i].position - world_pos);
 
-        float distance = length(lights[i].position - world_position);
-        color += diffuse / (1.0f + 0.5f * distance);
+        // Diffuse component
+        float diffuse_value = max(dot(normal, light_dir), 0.0f);
+        vec3 diffuse_color = diffuse_value * diffuse * lights[i].color * attenuation;
+
+        // Specular component
+        vec3 half_dir = normalize(light_dir + view_dir);
+        float specular_value = pow(max(dot(normal, half_dir), 0.0f), 16.0f);
+        vec3 specular_color = specular_value * specularity * lights[i].color * attenuation;
+
+        // Add components with attenuation
+        float attenuation = 1.0f / (1.0f + 0.5f * light_dist);
+        color += (diffuse_color + specular_color) * attenuation;
     }
 
     fragColor = vec4(color, 1.0f);
