@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
     }
 
     ORB_SLAM3::System SLAM(argv[1], argv[2], ORB_SLAM3::System::RGBD, false);
-    Renderer renderer(WIDTH, HEIGHT, argv[2], argv[4], "temp");
+    Renderer renderer(WIDTH, HEIGHT, argv[2], argv[4], argv[5]);
     std::thread thread = std::thread(&Renderer::run, &renderer);
     std::this_thread::sleep_for(std::chrono::milliseconds(16)); // Arbitrary time for the renderer to initialize
 

@@ -24,7 +24,7 @@ void main()
 {
     vec4 position = texture(gPosition, vTexcoord);
     vec3 normal = texture(gNormal, vTexcoord).rgb;
-    vec4 diff_spec = texture(gDiffSpec, vTexcoord, rgb);
+    vec4 diff_spec = texture(gDiffSpec, vTexcoord);
 
     // If the normal has length 0, we can assume that
     // there's not an actual object there.
@@ -50,12 +50,12 @@ void main()
 
         // Diffuse component
         float diffuse_value = max(dot(normal, light_dir), 0.0f);
-        vec3 diffuse_color = diffuse_value * diffuse * lights[i].color * attenuation;
+        vec3 diffuse_color = diffuse_value * diffuse * lights[i].color;
 
         // Specular component
         vec3 half_dir = normalize(light_dir + view_dir);
         float specular_value = pow(max(dot(normal, half_dir), 0.0f), 16.0f);
-        vec3 specular_color = specular_value * specularity * lights[i].color * attenuation;
+        vec3 specular_color = specular_value * specularity * lights[i].color;
 
         // Add components with attenuation
         float attenuation = 1.0f / (1.0f + 0.5f * light_dist);

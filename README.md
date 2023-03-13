@@ -19,7 +19,7 @@ make
 Assuming that everything has been built properly, ``main.cpp`` provides instructions with how to run the demo. An example command would be the following:
 
 ```
-./mixed_reality /home/jebbly/Desktop/Mixed-Reality/ORB-SLAM/Vocabulary/ORBvoc.txt /home/jebbly/Desktop/Mixed-Reality/Mixed-Reality/config/ETH3D_resize.yaml /home/jebbly/Desktop/Mixed-Reality/eth3d_table-3/ /home/jebbly/Desktop/Mixed-Reality/Mixed-Reality/shaders/
+./mixed_reality /home/jebbly/Desktop/Mixed-Reality/ORB-SLAM/Vocabulary/ORBvoc.txt /home/jebbly/Desktop/Mixed-Reality/Mixed-Reality/config/ETH3D_resize.yaml /home/jebbly/Desktop/Mixed-Reality/eth3d_table-3/ /home/jebbly/Desktop/Mixed-Reality/Mixed-Reality/shaders/ /home/jebbly/Desktop/Mixed-Reality/model.gltf
 ```
 
 ## To-Do

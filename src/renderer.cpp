@@ -26,6 +26,7 @@ void Renderer::run()
     init_framebuffer();
     init_shaders();
     init_images();
+    init_scene();
     init_ui();
 
     std::unique_lock<std::mutex> slam_lock(m_slam_mutex, std::defer_lock);
@@ -264,6 +265,13 @@ void Renderer::init_images()
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quad_indices), quad_indices, GL_STATIC_DRAW);
 
     std::cout << "[RENDERER]: Quad VAO created" << std::endl;
+}
+
+void Renderer::init_scene()
+{
+    m_scene.load();
+
+    std::cout << "[RENDERER]: Scene loaded" << std::endl;
 }
 
 void Renderer::init_ui()

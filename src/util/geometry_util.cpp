@@ -1,4 +1,6 @@
 #include "util/geometry_util.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
 Plane::Plane(const std::vector<ORB_SLAM3::MapPoint*> &plane_points, const cv::Mat &camera_pose) : 
     map_points(plane_points)
@@ -278,6 +280,8 @@ Model::Model(const std::string &filepath)
     m_directory = filepath.substr(0, filepath.find_last_of('/'));
 
     process_node(scene->mRootNode, scene);
+
+    std::cout << "[SCENE]: Model loaded" << std::endl;
 } 
 
 void Model::draw(Shader &shader)
@@ -464,9 +468,14 @@ unsigned int Model::load_texture_file(const std::string &filepath, bool gamma)
 }
 
 Scene::Scene(const std::string &filepath) :
-    m_model{filepath}
+    m_filepath{filepath}
 {
     // Start with an empty scene
+}
+
+void Scene::load()
+{
+    m_model = Model(m_filepath);
 }
 
 void Scene::draw(Shader &shader)

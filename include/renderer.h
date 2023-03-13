@@ -27,7 +27,7 @@ private:
     // Properties of the renderer
     size_t m_width, m_height;
     GLFWwindow* m_window;
-    std::string m_shader_dir, m_camera_settings;
+    std::string m_shader_dir, m_model_path, m_camera_settings;
 
     // Info needed to render or add an object
     std::mutex m_slam_mutex;
@@ -89,6 +89,7 @@ private:
     void init_framebuffer();
     void init_shaders();
     void init_images();
+    void init_scene();
     void init_ui();
 
     // Renderer drawing helpers

@@ -54,7 +54,6 @@ Plane* detect_plane(const std::vector<ORB_SLAM3::MapPoint*> &curr_map_points,
                     const std::vector<cv::KeyPoint> &curr_key_points,
                     const cv::Mat &curr_camera_pose);
 
-// 
 struct Vertex 
 {
     glm::vec3 position;
@@ -102,6 +101,7 @@ private:
     std::vector<Texture> m_loaded_textures;
 
 public:
+    Model() = default;
     Model(const std::string &filepath);
     void draw(Shader &shader);
 
@@ -120,12 +120,15 @@ private:
 class Scene
 {
 private:
+    std::string m_filepath;
     Model m_model;
     std::vector<Plane*> m_planes;
     std::vector<glm::mat4> m_transforms;
 
 public:
     Scene(const std::string &filepath);
+    void load();
+
     void draw(Shader &shader);
     void add_object(Plane *plane);
     void update(float timestep);
