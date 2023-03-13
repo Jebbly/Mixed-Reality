@@ -1,10 +1,11 @@
 #include "renderer.h"
 
-Renderer::Renderer(size_t width, size_t height, const std::string &settings, const std::string& shaders) : 
+Renderer::Renderer(size_t width, size_t height, const std::string &settings, const std::string &shaders, const std::string &model_path) : 
     m_width{width}, 
     m_height{height}, 
     m_camera_settings{settings},
     m_shader_dir{shaders},
+    m_scene{model_path},
     m_image_updated{false},
     m_draw_key_points{false},
     m_add_object{false},
@@ -15,10 +16,6 @@ Renderer::Renderer(size_t width, size_t height, const std::string &settings, con
 
 Renderer::~Renderer()
 {
-    for (int i = 0; i < m_planes.size(); i++) {
-        delete m_planes[i];
-    }
-    
     glfwTerminate();
 }
 
@@ -29,7 +26,6 @@ void Renderer::run()
     init_framebuffer();
     init_shaders();
     init_images();
-    init_objects();
     init_ui();
 
     std::unique_lock<std::mutex> slam_lock(m_slam_mutex, std::defer_lock);
@@ -56,10 +52,10 @@ void Renderer::run()
         draw_background_image();
 
         if (m_add_object) {
-            Plane* plane = add_object(m_map_points, m_key_points, m_camera_pose);
+            Plane* plane = detect_plane(m_map_points, m_key_points, m_camera_pose);
             if (plane) {
                 std::cout << "[RENDERER]: New object added" << std::endl;
-                m_planes.push_back(plane);
+                m_scene.add_object(plane);
             } else {
                 std::cout << "[RENDERER]: No plane detected to add object" << std::endl;
             }
@@ -67,7 +63,7 @@ void Renderer::run()
         }
 
         glClear(GL_DEPTH_BUFFER_BIT);
-        draw_objects();
+        draw_scene();
 
         m_image_updated = false;
 
@@ -185,8 +181,15 @@ void Renderer::init_framebuffer()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, m_normals, 0);
 
-    unsigned int attachments[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
-    glDrawBuffers(2, attachments);
+    glGenTextures(1, &m_diff_spec);
+    glBindTexture(GL_TEXTURE_2D, m_diff_spec);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, 2 * m_width, 2 * m_height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, m_diff_spec, 0);
+
+    unsigned int attachments[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
+    glDrawBuffers(3, attachments);
 
     unsigned int rbo_depth;
     glGenRenderbuffers(1, &rbo_depth);
@@ -263,34 +266,6 @@ void Renderer::init_images()
     std::cout << "[RENDERER]: Quad VAO created" << std::endl;
 }
 
-void Renderer::init_objects()
-{
-    // The same cube is used for each object
-    glGenVertexArrays(1, &m_geometry_vao);
-    glBindVertexArray(m_geometry_vao);
-
-    GLuint vertex_buffer = 0;
-    glGenBuffers(1, &vertex_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vertices), cube_vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-    glEnableVertexAttribArray(0);
-
-    GLuint normal_buffer = 0;
-    glGenBuffers(1, &normal_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, normal_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cube_normals), cube_normals, GL_STATIC_DRAW);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-    glEnableVertexAttribArray(1);
-
-    GLuint index_buffer = 0;
-    glGenBuffers(1, &index_buffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_indices), cube_indices, GL_STATIC_DRAW);
-
-    std::cout << "[RENDERER]: Geometry VAO created" << std::endl;
-}
-
 void Renderer::init_ui()
 {
     // Setup the ImGui context
@@ -339,7 +314,7 @@ void Renderer::draw_background_image()
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 }
 
-void Renderer::draw_objects()
+void Renderer::draw_scene()
 {
     if (m_camera_pose.empty()) {
         return;
@@ -358,18 +333,11 @@ void Renderer::draw_objects()
     // First bind the view and perspective matrices;
     // only the model matrix changes between objects
     m_geometry_shader.use();
-    glBindVertexArray(m_geometry_vao);
 
     m_geometry_shader.set_mat4("persp", m_persp);
+    m_geometry_shader.set_mat4("view", glm_from_cv(m_camera_pose));
 
-    glm::mat4 view = glm_from_cv(m_camera_pose);
-    m_geometry_shader.set_mat4("view", view);
-
-    for (size_t i = 0; i < m_planes.size(); i++) {
-        Plane* plane = m_planes[i];
-        m_geometry_shader.set_mat4("model", plane->model_matrix);
-        glDrawElements(GL_TRIANGLES, sizeof(cube_indices) / sizeof(int), GL_UNSIGNED_INT, nullptr);
-    }
+    m_scene.draw(m_geometry_shader);
 
     // Then we use the data in the deferred shading pass,
     // which should be at the window's resolution
@@ -382,18 +350,21 @@ void Renderer::draw_objects()
     glBindTexture(GL_TEXTURE_2D, m_positions);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, m_normals);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, m_diff_spec);
     if (m_image_updated) {
-        glActiveTexture(GL_TEXTURE2);
+        glActiveTexture(GL_TEXTURE3);
         glBindTexture(GL_TEXTURE_2D, m_depth_texture);
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_width, m_height, GL_RED, GL_FLOAT, m_completed_depth.data);
     }
-    glActiveTexture(GL_TEXTURE2);
+    glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, m_depth_texture);
 
     m_deferred_shader.use();
     m_deferred_shader.set_int("gPosition", 0);
     m_deferred_shader.set_int("gNormal", 1);
-    m_deferred_shader.set_int("depthTexture", 2);
+    m_deferred_shader.set_int("gDiffSpec", 2);
+    m_deferred_shader.set_int("depthTexture", 3);
 
     for (int i = 0; i < m_lights.size(); i++) {
         m_deferred_shader.set_vec3("lights[" + std::to_string(i) + "].position", m_lights[i].position);

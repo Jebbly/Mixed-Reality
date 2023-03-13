@@ -42,14 +42,21 @@ private:
     std::mutex m_light_mutex;
     std::vector<Light> m_lights;
 
-    // OpenGL objects needed for rendering
-    Shader m_image_shader, m_geometry_shader, m_deferred_shader;
+    // Geometry pass rendering
+    Scene m_scene;
+    Shader m_geometry_shader;
     GLuint m_geometry_fbo;
-    GLuint m_positions, m_normals;
-    GLuint m_quad_vao, m_geometry_vao;
-    GLuint m_background_texture, m_depth_texture;
     glm::mat4 m_persp;
-    std::vector<Plane*> m_planes;
+    std::vector<Model> m_models;
+
+    // Deferred pass rendering
+    Shader m_deferred_shader;
+    GLuint m_positions, m_normals, m_diff_spec;
+
+    // Quad rendering objects
+    Shader m_image_shader;
+    GLuint m_quad_vao;
+    GLuint m_background_texture, m_depth_texture;
 
     // Flags to control renderer behavior
     bool m_image_updated;
@@ -59,7 +66,7 @@ private:
 
 public:
     // Some things need to be initialized/destroyed before/after the main loop
-    Renderer(size_t width, size_t height, const std::string &settings, const std::string &shaders);
+    Renderer(size_t width, size_t height, const std::string &settings, const std::string &shaders, const std::string &model_path);
     ~Renderer();
 
     // Main event loop and mark when to close
@@ -82,13 +89,12 @@ private:
     void init_framebuffer();
     void init_shaders();
     void init_images();
-    void init_objects();
     void init_ui();
 
     // Renderer drawing helpers
     void draw_key_points();
     void draw_background_image();
-    void draw_objects();
+    void draw_scene();
     void draw_ui();
 };
 

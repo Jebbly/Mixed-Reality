@@ -4,15 +4,18 @@
 #include <iostream>
 #include <vector>
 
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/matrix.hpp>
 #include <opencv2/core/core.hpp>
 #include <MapPoint.h>
 #include <stb_image.h>
-#include <tiny_obj_loader.h>
 
 #include "util/matrix_util.h"
+#include "util/shader_util.h"
 
 // Attributes needed to draw a screen quad for the background image
 const float quad_vertices[] = {
@@ -34,111 +37,7 @@ const int quad_indices[] = {
     3, 2, 0
 };
 
-// Attributes needed to draw a cube object
-// Each vertex position is drawn three times
-// corresponding to three different vertex normals
-const float cube_vertices[] = {
-    // Bottom
-    -0.05f,  0.0f, -0.05f,
-    -0.05f,  0.0f,  0.05f,
-     0.05f,  0.0f, -0.05f,
-     0.05f,  0.0f,  0.05f,
-     
-    // Front
-     0.05f,  0.0f, -0.05f,
-     0.05f, -0.1f, -0.05f,
-    -0.05f,  0.0f, -0.05f,
-    -0.05f, -0.1f, -0.05f,
-
-    // Right
-     0.05f,  0.0f,  0.05f,
-     0.05f, -0.1f,  0.05f,
-     0.05f,  0.0f, -0.05f,
-     0.05f, -0.1f, -0.05f,
-
-    // Back
-    -0.05f,  0.0f,  0.05f,
-    -0.05f, -0.1f,  0.05f,
-     0.05f,  0.0f,  0.05f,
-     0.05f, -0.1f,  0.05f,
-
-    // Left
-    -0.05f,  0.0f,  0.05f,
-    -0.05f,  0.0f, -0.05f,
-    -0.05f, -0.1f,  0.05f,
-    -0.05f, -0.1f, -0.05f,
-
-    // Top
-     0.05f, -0.1f, -0.05f,
-     0.05f, -0.1f,  0.05f,
-    -0.05f, -0.1f, -0.05f,
-    -0.05f, -0.1f,  0.05f,
-};
-
-const float cube_normals[] = {
-    // Bottom
-     0.0f,  1.0f,  0.0f,
-     0.0f,  1.0f,  0.0f,
-     0.0f,  1.0f,  0.0f,
-     0.0f,  1.0f,  0.0f,
-
-    // Front
-     0.0f,  0.0f, -1.0f,
-     0.0f,  0.0f, -1.0f,
-     0.0f,  0.0f, -1.0f,
-     0.0f,  0.0f, -1.0f,
-
-    // Right
-     1.0f,  0.0f,  0.0f,
-     1.0f,  0.0f,  0.0f,
-     1.0f,  0.0f,  0.0f,
-     1.0f,  0.0f,  0.0f,
-
-    // Back
-     0.0f,  0.0f,  1.0f,
-     0.0f,  0.0f,  1.0f,
-     0.0f,  0.0f,  1.0f,
-     0.0f,  0.0f,  1.0f,
-
-    // Left
-    -1.0f,  0.0f,  0.0f,
-    -1.0f,  0.0f,  0.0f,
-    -1.0f,  0.0f,  0.0f,
-    -1.0f,  0.0f,  0.0f,
-
-    // Top
-     0.0f, -1.0f,  0.0f,
-     0.0f, -1.0f,  0.0f,
-     0.0f, -1.0f,  0.0f,
-     0.0f, -1.0f,  0.0f,
-};
-
-const int cube_indices[] = { 
-    // Bottom
-     0,  1,  2,
-     3,  2,  1,
-
-    // Front
-     4,  5,  6,
-     7,  6,  5,
-
-    // Right
-     8,  9, 10,
-    11, 10,  9,
-
-    // Back
-    12, 13, 14,
-    15, 14, 13,
-
-    // Left
-    16, 17, 18,
-    19, 18, 17,
-
-    // Top
-    20, 21, 22,
-    23, 22, 21
-};
-
+// A Plane defines the local coordinate space for each inserted object.
 class Plane
 {
 public:
@@ -151,8 +50,85 @@ public:
     std::vector<ORB_SLAM3::MapPoint*> map_points;
 };
 
-Plane* add_object(const std::vector<ORB_SLAM3::MapPoint*> &curr_map_points,
-                  const std::vector<cv::KeyPoint> &curr_key_points,
-                  const cv::Mat &curr_camera_pose);
+Plane* detect_plane(const std::vector<ORB_SLAM3::MapPoint*> &curr_map_points,
+                    const std::vector<cv::KeyPoint> &curr_key_points,
+                    const cv::Mat &curr_camera_pose);
+
+// 
+struct Vertex 
+{
+    glm::vec3 position;
+    glm::vec3 normal;
+    glm::vec2 uv;
+};
+
+enum class TextureType {
+    TEXTURE_DIFFUSE,
+    TEXTURE_SPECULAR,
+    TEXTURE_NORMAL
+};
+
+struct Texture 
+{
+    unsigned int id;
+    TextureType type;
+    std::string filepath;
+};
+
+// A Mesh contains the actual geometry data.
+class Mesh 
+{
+private:
+    std::vector<Vertex> m_vertices;
+    std::vector<unsigned int> m_indices;
+    std::vector<Texture> m_textures;
+
+    unsigned int m_vao, m_vbo, m_ebo;
+
+public:
+    Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, std::vector<Texture> textures);
+    void draw(Shader &shader);
+
+private:
+    void setup_mesh();
+};
+
+// A Model consists of multiple Meshes.
+class Model 
+{
+private:
+    std::vector<Mesh> m_meshes;
+    std::string m_directory;
+    std::vector<Texture> m_loaded_textures;
+
+public:
+    Model(const std::string &filepath);
+    void draw(Shader &shader);
+
+private:
+    // Helper loader functions
+    void process_node(aiNode *node, const aiScene *scene);
+    Mesh process_mesh(aiMesh *mesh, const aiScene *scene);
+    std::vector<Texture> load_textures(aiMaterial *mat, aiTextureType type);
+    unsigned int load_texture_file(const std::string &filepath, bool gamma = false);
+};
+
+// The Scene holds onto a single model object
+// and instantiates it in multiple places.
+// There isn't really enough geometry to warrant
+// object instancing at the moment.
+class Scene
+{
+private:
+    Model m_model;
+    std::vector<Plane*> m_planes;
+    std::vector<glm::mat4> m_transforms;
+
+public:
+    Scene(const std::string &filepath);
+    void draw(Shader &shader);
+    void add_object(Plane *plane);
+    void update(float timestep);
+};
 
 #endif // GEOMETRY_UTIL_H

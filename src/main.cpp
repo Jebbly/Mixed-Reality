@@ -21,14 +21,13 @@ const int NUM_LIGHTS = 4;
 
 int main(int argc, char* argv[])
 {
-    if(argc < 5)
-    {
-        std::cerr << "Usage: ./mixed_reality [vocabulary_file] [settings_file] [dataset_directory] [shader_directory]" << std::endl;
+    if (argc < 6) {
+        std::cerr << "Usage: ./mixed_reality [vocabulary_file] [settings_file] [dataset_dir] [shader_dir] [model_file]" << std::endl;
         return -1;
     }
 
     ORB_SLAM3::System SLAM(argv[1], argv[2], ORB_SLAM3::System::RGBD, false);
-    Renderer renderer(WIDTH, HEIGHT, argv[2], argv[4]);
+    Renderer renderer(WIDTH, HEIGHT, argv[2], argv[4], "temp");
     std::thread thread = std::thread(&Renderer::run, &renderer);
     std::this_thread::sleep_for(std::chrono::milliseconds(16)); // Arbitrary time for the renderer to initialize
 
