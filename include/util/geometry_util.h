@@ -9,7 +9,9 @@
 #include <assimp/postprocess.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <glm/matrix.hpp>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <opencv2/core/core.hpp>
 #include <MapPoint.h>
 #include <stb_image.h>
@@ -64,7 +66,6 @@ struct Vertex
 enum class TextureType {
     TEXTURE_DIFFUSE,
     TEXTURE_SPECULAR,
-    TEXTURE_NORMAL
 };
 
 struct Texture 
@@ -113,6 +114,17 @@ private:
     unsigned int load_texture_file(const std::string &filepath, bool gamma = false);
 };
 
+struct Transformation {
+    glm::vec3 translation;
+    glm::vec3 scale;
+    glm::vec3 rotation;
+    float t;
+
+    void update(float timestep);
+
+    glm::mat4 transform_matrix();
+};
+
 // The Scene holds onto a single model object
 // and instantiates it in multiple places.
 // There isn't really enough geometry to warrant
@@ -123,7 +135,7 @@ private:
     std::string m_filepath;
     Model m_model;
     std::vector<Plane*> m_planes;
-    std::vector<glm::mat4> m_transforms;
+    std::vector<Transformation> m_transforms;
 
 public:
     Scene(const std::string &filepath);

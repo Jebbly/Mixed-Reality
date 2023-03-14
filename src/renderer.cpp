@@ -9,7 +9,8 @@ Renderer::Renderer(size_t width, size_t height, const std::string &settings, con
     m_image_updated{false},
     m_draw_key_points{false},
     m_add_object{false},
-    m_should_close{false}
+    m_should_close{false},
+    m_last_frame{std::chrono::system_clock::now()}
 {
     // Most initialization happens when run() is called on a separate thread
 }
@@ -62,6 +63,11 @@ void Renderer::run()
             }
             m_add_object = false;
         }
+
+        const std::chrono::time_point<std::chrono::system_clock> curr_frame = std::chrono::system_clock::now();
+        float timestep = std::chrono::duration_cast<std::chrono::milliseconds>(curr_frame - m_last_frame).count() / 1000.0f;
+        m_last_frame = curr_frame;
+        m_scene.update(timestep);
 
         glClear(GL_DEPTH_BUFFER_BIT);
         draw_scene();

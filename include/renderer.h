@@ -1,6 +1,7 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
+#include <chrono>
 #include <iostream>
 #include <mutex>
 #include <vector>
@@ -63,6 +64,9 @@ private:
     bool m_draw_key_points;
     bool m_add_object;
     bool m_should_close;
+
+    // Timestep for animation
+    std::chrono::time_point<std::chrono::system_clock> m_last_frame;
 
 public:
     // Some things need to be initialized/destroyed before/after the main loop

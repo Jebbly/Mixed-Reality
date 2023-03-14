@@ -241,19 +241,17 @@ void Mesh::draw(Shader &shader)
         glActiveTexture(GL_TEXTURE0 + i);
         Texture texture = m_textures[i];
 
-        // TO-DO:
+        std::string name = "material.";
         switch (texture.type) {
-            case TextureType::TEXTURE_NORMAL: {
-                
-            }
             case TextureType::TEXTURE_DIFFUSE: {
-
+                name += "texture_diffuse";
             }
             case TextureType::TEXTURE_SPECULAR: {
-
+                name += "texture_specular";
             }
         }
 
+        shader.set_int(name, i);
         glBindTexture(GL_TEXTURE_2D, texture.id);
     }
 
@@ -279,9 +277,8 @@ Model::Model(const std::string &filepath)
     }
     m_directory = filepath.substr(0, filepath.find_last_of('/'));
 
+    // stbi_set_flip_vertically_on_load(true);
     process_node(scene->mRootNode, scene);
-
-    std::cout << "[SCENE]: Model loaded" << std::endl;
 } 
 
 void Model::draw(Shader &shader)
@@ -360,10 +357,6 @@ Mesh Model::process_mesh(aiMesh *mesh, const aiScene *scene)
     std::vector<Texture> specularMaps = load_textures(material, aiTextureType_SPECULAR);
     textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
 
-    // Normal
-    std::vector<Texture> normalMaps = load_textures(material, aiTextureType_HEIGHT);
-    textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
-
     return Mesh(vertices, indices, textures);
 }
 
@@ -399,10 +392,6 @@ std::vector<Texture> Model::load_textures(aiMaterial *mat, aiTextureType type)
                 }
                 case aiTextureType_SPECULAR: {
                     texture.type = TextureType::TEXTURE_SPECULAR;
-                    break;
-                }
-                case aiTextureType_HEIGHT: {
-                    texture.type = TextureType::TEXTURE_NORMAL;
                     break;
                 }
                 default: {
@@ -467,6 +456,27 @@ unsigned int Model::load_texture_file(const std::string &filepath, bool gamma)
     return texture;
 }
 
+void Transformation::update(float timestep)
+{
+    t += timestep;
+}
+
+glm::mat4 Transformation::transform_matrix()
+{
+    glm::mat4 transform = glm::mat4(1.0f);
+
+    transform = glm::scale(transform, scale);
+
+    transform = glm::rotate(transform, glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+    transform = glm::rotate(transform, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+    transform = glm::rotate(transform, glm::radians(150 * t), glm::vec3(0.0f, 0.0f, 1.0f));
+
+    transform = glm::translate(transform, translation);
+    transform = glm::translate(transform, glm::vec3(glm::cos(t), glm::sin(t), 0));
+
+    return transform;
+}
+
 Scene::Scene(const std::string &filepath) :
     m_filepath{filepath}
 {
@@ -482,7 +492,7 @@ void Scene::draw(Shader &shader)
 {
     for (int i = 0; i < m_planes.size(); i++) {
         shader.set_mat4("plane", m_planes[i]->model_matrix);
-        shader.set_mat4("local", m_transforms[i]);
+        shader.set_mat4("local", m_transforms[i].transform_matrix());
         m_model.draw(shader);
     }
 }
@@ -490,12 +500,18 @@ void Scene::draw(Shader &shader)
 void Scene::add_object(Plane *plane)
 {
     m_planes.push_back(plane);
-    m_transforms.push_back(glm::mat4(1.0f));
+    Transformation transform;
+    transform.scale = glm::vec3(0.15f, 0.15f, 0.15f);
+    transform.rotation = glm::vec3(90.0f, 0.0f, 0.0f);
+    transform.translation = glm::vec3(0.0f, 0.0f, 1.0f);
+    transform.t = 0.0f;
+    m_transforms.push_back(transform);
 }
 
 void Scene::update(float timestep)
 {
     for (int i = 0; i < m_planes.size(); i++) {
         // Update the local transformations here
+        m_transforms[i].update(timestep);
     }
 }
