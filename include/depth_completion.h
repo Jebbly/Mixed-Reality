@@ -36,7 +36,7 @@ private:
     int m_image_idx;
 
 public:
-    OfflineDepthCompleter(const std::string &dataset_dir, OfflineDatasetType type);
+    OfflineDepthCompleter(const std::string &dataset_dir, const std::string &prefix, OfflineDatasetType type);
 
     virtual void complete_depth_image(const cv::Mat &incomplete_depth_image);
 };

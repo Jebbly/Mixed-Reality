@@ -9,29 +9,14 @@
 #include "depth_completion.h"
 #include "light_estimation.h"
 
-// The window dimensions are slightly different
-// from the actual image dimensions because
-// there are byte alignment requirements
-// when we copy the image data to OpenGL.
-const int WIDTH = 736;
-const int HEIGHT = 456;
-
-const int NUM_FRAMES = 1180; // Number of frames used in the offline camera stream
 const int NUM_LIGHTS = 4;
 
 int main(int argc, char* argv[])
 {
-    if (argc < 6) {
+    if (argc < 5) {
         std::cerr << "Usage: ./mixed_reality [vocabulary_file] [settings_file] [shader_dir] [model_file] [dataset_dir]" << std::endl;
         return -1;
     }
-
-    ORB_SLAM3::System SLAM(argv[1], argv[2], ORB_SLAM3::System::RGBD, false);
-    Renderer renderer(WIDTH, HEIGHT, argv[2], argv[3], argv[4]);
-    std::thread thread = std::thread(&Renderer::run, &renderer);
-
-    // Arbitrary time for the renderer to initialize
-    std::this_thread::sleep_for(std::chrono::milliseconds(16));
 
     // Parse the dataset type from the given arguments
     std::string settings = argv[2];
@@ -45,15 +30,30 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    // Implementations of camera stream, light source estimation, and depth completion
+    // Camera implementation
     CameraStream* camera = new OfflineCameraStream(argv[5], type);
+
+    // The window dimensions are slightly different
+    // from the actual image dimensions because
+    // there are byte alignment requirements
+    // when we copy the image data to OpenGL.
+    int width = camera->get_width(), height = camera->get_height();
+
+    // Start the SLAM and renderer threads
+    ORB_SLAM3::System SLAM(argv[1], argv[2], ORB_SLAM3::System::RGBD, false);
+    Renderer renderer(width, height, argv[2], argv[3], argv[4]);
+    std::thread thread = std::thread(&Renderer::run, &renderer);
+
+    // Arbitrary time for the renderer to initialize
+    std::this_thread::sleep_for(std::chrono::milliseconds(16));
+
+    // Implementations of light source estimation and depth completion
     LightEstimator* light_estimator = new RandLightEstimator(NUM_LIGHTS);
-    DepthCompleter* depth_completer = new OfflineDepthCompleter(argv[5], type);
+    DepthCompleter* depth_completer = new OfflineDepthCompleter(argv[5], "", type);
 
     // The completed depths have 4 fewer frames than the dataset,
     // so we have to adjust for the indexing.
     int num_frames = camera->get_frame_count();
-    int width = camera->get_width(), height = camera->get_height();
     for (int i = 0; i < num_frames; i++) {
         std::tuple<cv::Mat, cv::Mat, double> stream = camera->get_stream();
 

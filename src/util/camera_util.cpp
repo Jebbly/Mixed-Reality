@@ -63,10 +63,15 @@ std::tuple<std::string, std::string, double> process_scannet(const std::string &
     std::stringstream ss;
     ss << line;
 
-    double t;
+    double t, pose_info;
     std::string rgb_image, depth_image;
 
-    ss >> t;    
+    ss >> t;
+    // The associated file also provides unnecessary information
+    for (int i = 0; i < 7; i++) {
+        ss >> pose_info;
+    }
+    ss >> t;
     ss >> depth_image;
     ss >> t;
     ss >> rgb_image;

@@ -17,7 +17,7 @@ const cv::Mat& DepthCompleter::get_depth_image() const
 }
 
 // Implementation definitions
-OfflineDepthCompleter::OfflineDepthCompleter(const std::string &dataset_dir, OfflineDatasetType type) :
+OfflineDepthCompleter::OfflineDepthCompleter(const std::string &dataset_dir, const std::string &prefix, OfflineDatasetType type) :
     DepthCompleter{},
     m_dataset_dir{dataset_dir},
     m_image_idx{0}
@@ -28,7 +28,7 @@ OfflineDepthCompleter::OfflineDepthCompleter(const std::string &dataset_dir, Off
         std::tuple<std::string, std::string, double> &frame = dataset[i];
         
         // We only care about the depth image in this case
-        m_depth_images.push_back("final_raycast_" + std::get<1>(frame));
+        m_depth_images.push_back(prefix + std::get<1>(frame));
     }
 
     std::cout << "[OFFLINE DEPTH COMPLETER]: Read " << m_depth_images.size() << " depth images" << std::endl;
