@@ -36,7 +36,7 @@ void RandLightEstimator::estimate_lights(const cv::Mat &rgb_image, const cv::Mat
     // but this light estimator just approximates the color and randomizes positions.
     for (int i = 0; i < m_num_lights; i++) {
         Light light;
-        light.position = glm::vec3(rand_float(), rand_float(), rand_float());
+        light.position = 1.5f * glm::vec3(rand_float(), rand_float(), rand_float());
         light.color = glm::vec3(1.0f, 1.0f, 0.75f);
         light.intensity = abs(rand_float()) * 5.0f;
         m_lights.push_back(light);

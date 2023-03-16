@@ -41,6 +41,7 @@ void main()
     vec3 diffuse = diff_spec.rgb;
     float specularity = diff_spec.a;
     vec3 view_dir = normalize(viewPos - world_pos);
+    normal = normalize(normal);
 
     // Add up the contributions from each light
     vec3 color = vec3(0.0f);
