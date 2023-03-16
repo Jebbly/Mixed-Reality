@@ -22,28 +22,44 @@ const int NUM_LIGHTS = 4;
 int main(int argc, char* argv[])
 {
     if (argc < 6) {
-        std::cerr << "Usage: ./mixed_reality [vocabulary_file] [settings_file] [dataset_dir] [shader_dir] [model_file]" << std::endl;
+        std::cerr << "Usage: ./mixed_reality [vocabulary_file] [settings_file] [shader_dir] [model_file] [dataset_dir]" << std::endl;
         return -1;
     }
 
     ORB_SLAM3::System SLAM(argv[1], argv[2], ORB_SLAM3::System::RGBD, false);
-    Renderer renderer(WIDTH, HEIGHT, argv[2], argv[4], argv[5]);
+    Renderer renderer(WIDTH, HEIGHT, argv[2], argv[3], argv[4]);
     std::thread thread = std::thread(&Renderer::run, &renderer);
-    std::this_thread::sleep_for(std::chrono::milliseconds(16)); // Arbitrary time for the renderer to initialize
 
-    // Implementations of light source estimation and depth completion
-    CameraStream* camera = new OfflineCameraStream(argv[3]);
+    // Arbitrary time for the renderer to initialize
+    std::this_thread::sleep_for(std::chrono::milliseconds(16));
+
+    // Parse the dataset type from the given arguments
+    std::string settings = argv[2];
+    OfflineDatasetType type;
+    if (settings.find("ETH3D") != std::string::npos) {
+        type = OfflineDatasetType::ETH3D;
+    } else if (settings.find("ScanNet") != std::string::npos) {
+        type = OfflineDatasetType::SCANNET;
+    } else {
+        std::cerr << "Invalid dataset type provided" << std::endl;
+        return -1;
+    }
+
+    // Implementations of camera stream, light source estimation, and depth completion
+    CameraStream* camera = new OfflineCameraStream(argv[5], type);
     LightEstimator* light_estimator = new RandLightEstimator(NUM_LIGHTS);
-    DepthCompleter* depth_completer = new OfflineDepthCompleter(argv[3]);
+    DepthCompleter* depth_completer = new OfflineDepthCompleter(argv[5], type);
 
     // The completed depths have 4 fewer frames than the dataset,
     // so we have to adjust for the indexing.
-    for (int i = 0; i < NUM_FRAMES; i++) {
+    int num_frames = camera->get_frame_count();
+    int width = camera->get_width(), height = camera->get_height();
+    for (int i = 0; i < num_frames; i++) {
         std::tuple<cv::Mat, cv::Mat, double> stream = camera->get_stream();
 
         cv::Mat rgb_image, depth_image;
-        cv::resize(std::get<0>(stream), rgb_image, cv::Size(WIDTH, HEIGHT));
-        cv::resize(std::get<1>(stream), depth_image, cv::Size(WIDTH, HEIGHT));
+        cv::resize(std::get<0>(stream), rgb_image, cv::Size(width, height));
+        cv::resize(std::get<1>(stream), depth_image, cv::Size(width, height));
         double timestamp = std::get<2>(stream);
 
         // We always want to update the pose whenever we update the image
@@ -65,7 +81,7 @@ int main(int argc, char* argv[])
         if (lights.empty() || completed_depth.empty()) {
             continue;
         }
-        cv::resize(completed_depth, completed_depth, cv::Size(WIDTH, HEIGHT));
+        cv::resize(completed_depth, completed_depth, cv::Size(width, height));
 
         const std::chrono::time_point<std::chrono::system_clock> end = std::chrono::system_clock::now();
 

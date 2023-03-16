@@ -11,44 +11,56 @@ CameraStream::~CameraStream()
     
 }
 
+int CameraStream::get_width() const
+{
+    return m_width;
+}
+
+int CameraStream::get_height() const
+{
+    return m_height;
+}
+
+int CameraStream::get_frame_count() const
+{
+    return m_frame_count;
+}
+
 // Implementation definitions
-OfflineCameraStream::OfflineCameraStream(const std::string& dataset_dir) :
+OfflineCameraStream::OfflineCameraStream(const std::string& dataset_dir, OfflineDatasetType type) :
     CameraStream{},
     m_dataset_dir{dataset_dir},
     m_index{0}
 {
-    // The association files lists out the name of the images used (with timestamps)
-    std::string associated_files = dataset_dir + "/associated.txt";
+    std::vector<std::tuple<std::string, std::string, double>> dataset = load_offline_dataset(dataset_dir, type);
 
-    std::cout << "[OFFLINE CAMERA]: Reading associations from " << associated_files << std::endl;
-    std::ifstream associations(associated_files.c_str());
-    if (!associations.is_open()) {
-        std::cerr << "[OFFLINE CAMERA]: Can't open associated.txt file!" << std::endl;
+    for (int i = 0; i < dataset.size(); i++) {
+        std::tuple<std::string, std::string, double> &frame = dataset[i];
+        m_rgb_images.push_back(std::get<0>(frame));
+        m_depth_images.push_back(std::get<1>(frame));
+        m_timestamps.push_back(std::get<2>(frame));
     }
 
-    std::string line;
-    while (std::getline(associations, line))
-    {
-        if(!line.empty())
-        {
-            std::stringstream ss;
-            ss << line;
+    m_frame_count = m_rgb_images.size();
 
-            double t;
-            std::string rgb_image, depth_image;
+    if (m_frame_count == 0) {
+        throw std::runtime_error("[OFFLINE CAMERA]: No RGB images loaded");
+    }
 
-            ss >> t;
-            ss >> rgb_image;
-            ss >> t;
-            ss >> depth_image;
-
-            m_timestamps.push_back(t);
-            m_rgb_images.push_back(rgb_image);
-            m_depth_images.push_back(depth_image);
+    switch (type) {
+        case OfflineDatasetType::ETH3D: {
+            m_width = 736;
+            m_height = 456;
+            break;
+        }
+        case OfflineDatasetType::SCANNET: {
+            m_width = 1296;
+            m_height = 968;
+            break;
         }
     }
 
-    std::cout << "[OFFLINE CAMERA]: Read " << m_rgb_images.size() << " dataset images" << std::endl;
+    std::cout << "[OFFLINE CAMERA]: Read " << m_frame_count << " dataset images" << std::endl;
 }
 
 std::tuple<cv::Mat, cv::Mat, double> OfflineCameraStream::get_stream()

@@ -90,6 +90,7 @@ set(PROJECT_LIBS
 include_directories(include)
 set(PROJECT_FILES
     ${LIB_SOURCES}
+    src/util/camera_util.cpp
     src/util/geometry_util.cpp
     src/util/shader_util.cpp
     src/util/matrix_util.cpp

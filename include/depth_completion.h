@@ -11,6 +11,8 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include "util/camera_util.h"
+
 // Base class defines an interface for depth completion
 class DepthCompleter
 {
@@ -34,7 +36,7 @@ private:
     int m_image_idx;
 
 public:
-    OfflineDepthCompleter(const std::string &dataset_dir);
+    OfflineDepthCompleter(const std::string &dataset_dir, OfflineDatasetType type);
 
     virtual void complete_depth_image(const cv::Mat &incomplete_depth_image);
 };
