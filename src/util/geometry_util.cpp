@@ -469,10 +469,9 @@ glm::mat4 Transformation::transform_matrix()
 
     transform = glm::rotate(transform, glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
     transform = glm::rotate(transform, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-    // transform = glm::rotate(transform, glm::radians(150 * t), glm::vec3(0.0f, 0.0f, 1.0f));
+    transform = glm::rotate(transform, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
 
     transform = glm::translate(transform, translation);
-    // transform = glm::translate(transform, glm::vec3(glm::cos(t), glm::sin(t), 0));
 
     return transform;
 }
@@ -503,6 +502,7 @@ void Scene::add_object(Plane *plane)
     Transformation transform;
     transform.scale = glm::vec3(1.0f, 1.0f, 1.0f);
     transform.translation = glm::vec3(0.0f, 0.0f, 0.0f);
+    transform.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
     transform.t = 0.0f;
     m_transforms.push_back(transform);
 }
