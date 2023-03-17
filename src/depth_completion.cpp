@@ -27,8 +27,12 @@ OfflineDepthCompleter::OfflineDepthCompleter(const std::string &dataset_dir, con
      for (int i = 0; i < dataset.size(); i++) {
         std::tuple<std::string, std::string, double> &frame = dataset[i];
         
-        // We only care about the depth image in this case
-        m_depth_images.push_back(prefix + std::get<1>(frame));
+        // We only care about the corresponding depth image in this case
+        std::string depth_image = std::get<1>(frame);
+        depth_image = std::regex_replace(depth_image, std::regex("images"), "depth");
+        depth_image = std::regex_replace(depth_image, std::regex("pgm"), "png");
+
+        m_depth_images.push_back(prefix + depth_image);
     }
 
     switch (type) {
@@ -37,7 +41,7 @@ OfflineDepthCompleter::OfflineDepthCompleter(const std::string &dataset_dir, con
             break;
         }
         case OfflineDatasetType::SCANNET: {
-            m_scale = 1 / 1000.0f;
+            m_scale = 1 / 5000.0f;
             break;
         }
     }

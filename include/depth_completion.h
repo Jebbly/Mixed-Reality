@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
+#include <regex>
 #include <vector>
 
 #include <opencv2/opencv.hpp>
