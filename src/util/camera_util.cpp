@@ -15,7 +15,7 @@ std::vector<std::tuple<std::string, std::string, double>> load_offline_dataset(c
     }
 
     std::cout << "[OFFLINE CAMERA]: Reading associations from " << associated_files << std::endl;
-    std::ifstream associations(associated_files.c_str());
+    std::ifstream associations(associated_files);
     if (!associations.is_open()) {
         std::cerr << "[OFFLINE CAMERA]: Can't open associated.txt file!" << std::endl;
     }

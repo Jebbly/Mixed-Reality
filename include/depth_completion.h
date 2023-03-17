@@ -33,6 +33,7 @@ class OfflineDepthCompleter : public DepthCompleter
 private:
     std::string m_dataset_dir;
     std::vector<std::string> m_depth_images;
+    float m_scale;
     int m_image_idx;
 
 public:

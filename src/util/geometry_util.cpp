@@ -2,31 +2,34 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-Plane::Plane(const std::vector<ORB_SLAM3::MapPoint*> &plane_points, const cv::Mat &camera_pose) : 
-    map_points(plane_points)
+Plane::Plane(const cv::Mat &origin, const cv::Mat &normal, float orientation) :
+    m_origin{origin},
+    m_normal{normal},
+    m_orientation{orientation}
 {
-    orientation = -3.14f / 2 + ((float) rand() / RAND_MAX) * 3.14f;
-    recompute(camera_pose);
+    recompute_model_matrix();
 }
 
-void Plane::recompute(const cv::Mat &camera_pose)
+Plane::Plane(const std::vector<ORB_SLAM3::MapPoint*> &plane_points, const cv::Mat &camera_pose)
 {
-    const int N = map_points.size();
+    m_orientation = -3.14f / 2 + ((float) rand() / RAND_MAX) * 3.14f;
+
+    const int N = plane_points.size();
 
     // Recompute plane with all points
     cv::Mat A = cv::Mat(N, 4, CV_32F);
     A.col(3) = cv::Mat::ones(N, 1, CV_32F);
 
-    origin = cv::Mat::zeros(3,1,CV_32F);
+    m_origin = cv::Mat::zeros(3,1,CV_32F);
 
     int num_points = 0;
     for (int i = 0; i < N; i++)
     {
-        ORB_SLAM3::MapPoint* map_point = map_points[i];
+        ORB_SLAM3::MapPoint* map_point = plane_points[i];
         if (!map_point->isBad())
         {
             cv::Mat world_pos = ORB_SLAM3::Converter::toCvMat(map_point->GetWorldPos());
-            origin += world_pos;
+            m_origin += world_pos;
             A.row(num_points).colRange(0,3) = world_pos.t();
             num_points++;
         }
@@ -41,11 +44,11 @@ void Plane::recompute(const cv::Mat &camera_pose)
     float c = vt.at<float>(3, 2);
     std::cout << "[PLANE]: Plane coefficients: " << a << " " << b << " " << c << std::endl;
 
-    origin = origin * (1.0f / num_points);
+    m_origin = m_origin * (1.0f / num_points);
     const float f = 1.0f / sqrt(a * a + b * b + c * c);
 
     cv::Mat Oc = -camera_pose.colRange(0,3).rowRange(0,3).t() * camera_pose.rowRange(0,3).col(3);
-    cv::Mat XC = Oc - origin;
+    cv::Mat XC = Oc - m_origin;
 
     if ((XC.at<float>(0) * a + XC.at<float>(1) * b + XC.at<float>(2) * c) > 0)
     {
@@ -54,21 +57,33 @@ void Plane::recompute(const cv::Mat &camera_pose)
         c = -c;
     }
 
-    const float nx = a * f;
-    const float ny = b * f;
-    const float nz = c * f;
+    m_normal = (cv::Mat_<float>(3,1) << a * f, b * f, c * f);
 
-    normal = (cv::Mat_<float>(3,1) << nx, ny, nz);
+    recompute_model_matrix();
+}
+
+void Plane::recompute_model_matrix()
+{
     cv::Mat up = (cv::Mat_<float>(3,1) << 0.0f, 1.0f, 0.0f);
-    cv::Mat v = up.cross(normal);
+    cv::Mat v = up.cross(m_normal);
     const float sa = cv::norm(v);
-    const float ca = up.dot(normal);
+    const float ca = up.dot(m_normal);
     const float ang = atan2(sa, ca);
 
     cv::Mat transform = cv::Mat::eye(4, 4, CV_32F);
-    transform.rowRange(0, 3).colRange(0, 3) = ExpSO3(v * ang / sa) * ExpSO3(up * orientation);
-    origin.copyTo(transform.col(3).rowRange(0,3));
-    model_matrix = glm_from_cv(transform);
+    transform.rowRange(0, 3).colRange(0, 3) = ExpSO3(v * ang / sa) * ExpSO3(up * m_orientation);
+    m_origin.copyTo(transform.col(3).rowRange(0,3));
+    m_model_matrix = glm_from_cv(transform);
+}
+
+const glm::mat4& Plane::get_model_matrix() const
+{
+    return m_model_matrix;
+}
+
+std::tuple<cv::Mat, cv::Mat, float> Plane::get_plane_information() const
+{
+    return std::make_tuple(m_origin, m_normal, m_orientation);
 }
 
 Plane* detect_plane(const std::vector<ORB_SLAM3::MapPoint*> &curr_map_points, 
@@ -490,7 +505,7 @@ void Scene::load()
 void Scene::draw(Shader &shader)
 {
     for (int i = 0; i < m_planes.size(); i++) {
-        shader.set_mat4("plane", m_planes[i]->model_matrix);
+        shader.set_mat4("plane", m_planes[i]->get_model_matrix());
         shader.set_mat4("local", m_transforms[i].transform_matrix());
         m_model.draw(shader);
     }

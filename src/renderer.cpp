@@ -10,6 +10,7 @@ Renderer::Renderer(size_t width, size_t height, const std::string &settings, con
     m_draw_key_points{false},
     m_add_object{false},
     m_should_close{false},
+    m_last_object_added{nullptr},
     m_last_frame{std::chrono::system_clock::now()}
 {
     // Most initialization happens when run() is called on a separate thread
@@ -33,6 +34,7 @@ void Renderer::run()
     std::unique_lock<std::mutex> slam_lock(m_slam_mutex, std::defer_lock);
     std::unique_lock<std::mutex> image_lock(m_image_mutex, std::defer_lock);
     std::unique_lock<std::mutex> light_lock(m_light_mutex, std::defer_lock);
+    std::unique_lock<std::mutex> object_lock(m_object_mutex, std::defer_lock);
 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
@@ -46,6 +48,7 @@ void Renderer::run()
         slam_lock.lock();
         image_lock.lock();
         light_lock.lock();
+        object_lock.lock();
 
         if (m_draw_key_points) {
             draw_key_points();
@@ -58,6 +61,7 @@ void Renderer::run()
             if (plane) {
                 std::cout << "[RENDERER]: New object added" << std::endl;
                 m_scene.add_object(plane);
+                m_last_object_added = plane;
             } else {
                 std::cout << "[RENDERER]: No plane detected to add object" << std::endl;
             }
@@ -77,6 +81,7 @@ void Renderer::run()
         slam_lock.unlock();
         image_lock.unlock();
         light_lock.unlock();
+        object_lock.unlock();
 
         // draw the UI on top of everything else
         draw_ui();
@@ -118,6 +123,23 @@ void Renderer::set_lights(const std::vector<Light> &lights)
     std::lock_guard<std::mutex> lock(m_light_mutex);
 
     m_lights = lights;
+}
+
+void Renderer::add_object(const cv::Mat &origin, const cv::Mat &normal, float orientation)
+{
+    std::lock_guard<std::mutex> lock(m_object_mutex);
+
+    Plane* new_object = new Plane(origin, normal, orientation);
+    m_scene.add_object(new_object);
+}
+
+Plane* Renderer::get_most_recent_object()
+{
+    std::lock_guard<std::mutex> lock(m_object_mutex);
+
+    Plane* last_object = m_last_object_added;
+    m_last_object_added = nullptr; 
+    return last_object;
 }
 
 static void glfw_resize_callback(GLFWwindow* window, int width, int height)

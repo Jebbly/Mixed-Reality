@@ -65,6 +65,10 @@ private:
     bool m_add_object;
     bool m_should_close;
 
+    // Externally check when an object was added
+    std::mutex m_object_mutex;
+    Plane* m_last_object_added;
+
     // Timestep for animation
     std::chrono::time_point<std::chrono::system_clock> m_last_frame;
 
@@ -82,9 +86,14 @@ public:
                   const std::vector<ORB_SLAM3::MapPoint*> &map_points,
                   const std::vector<cv::KeyPoint> &key_points);
 
-    void set_images(const cv::Mat& rgb_image, const cv::Mat &depth_image);
+    void set_images(const cv::Mat &rgb_image, const cv::Mat &depth_image);
 
     void set_lights(const std::vector<Light> &lights);
+
+    void add_object(const cv::Mat &origin, const cv::Mat &normal, float orientation);
+    
+    // The main loop needs to know at which point an object was added
+    Plane* get_most_recent_object();
 
 private:
     // Initialization helpers

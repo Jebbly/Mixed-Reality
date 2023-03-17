@@ -1,5 +1,8 @@
 #include <chrono>
+#include <fstream>
 #include <iostream>
+#include <sstream> 
+#include <string>
 #include <thread>
 
 #include <System.h> // ORB-SLAM system needed for tracking
@@ -11,10 +14,62 @@
 
 const int NUM_LIGHTS = 4;
 
+std::vector<std::tuple<int, cv::Mat, cv::Mat, float>> read_recording(const std::string &filepath) 
+{
+    std::ifstream record_file (filepath);
+    std::vector<std::tuple<int, cv::Mat, cv::Mat, float>> ret;
+
+    if (!record_file.is_open()) {
+        return ret;
+    }
+
+    std::cout << "[MAIN LOOP]: Reading records from " << filepath << std::endl;
+
+    std::string line;
+     while (std::getline(record_file, line)) {
+        if(!line.empty()) {
+            std::stringstream ss;
+            ss << line;
+
+            int index;
+            float o_x, o_y, o_z, n_x, n_y, n_z, orientation;
+            ss >> index >> o_x >> o_y >> o_z >> n_x >> n_y >> n_z >> orientation;
+
+            cv::Mat origin = (cv::Mat_<float>(3, 1) << o_x, o_y, o_z);
+            cv::Mat normal = (cv::Mat_<float>(3, 1) << n_x, n_y, n_z);
+            ret.push_back(std::make_tuple(index, origin, normal, orientation));
+        }
+    }
+
+    return ret;
+}
+
+void write_recording(const std::string &filepath, const std::vector<std::tuple<int, cv::Mat, cv::Mat, float>> &recordings)
+{
+    std::ofstream record_file(filepath);
+
+    for (int i = 0; i < recordings.size(); i++) {
+        const std::tuple<int, cv::Mat, cv::Mat, float> &recording = recordings[i];
+
+        int index = std::get<0>(recording);
+        const cv::Mat &origin = std::get<1>(recording);
+        const cv::Mat &normal = std::get<2>(recording);
+        float orientation = std::get<3>(recording);
+
+        record_file << index << " " <<
+                       origin.at<float>(0, 0) << " " << origin.at<float>(0, 1) << " " << origin.at<float>(0, 2) << " " <<
+                       normal.at<float>(0, 0) << " " << normal.at<float>(0, 1) << " " << normal.at<float>(0, 2) << " " <<
+                       orientation << std::endl;
+    }  
+
+    record_file.close();
+}
+
 int main(int argc, char* argv[])
 {
-    if (argc < 5) {
-        std::cerr << "Usage: ./mixed_reality [vocabulary_file] [settings_file] [shader_dir] [model_file] [dataset_dir]" << std::endl;
+    if (argc < 6) {
+        std::cerr << "Usage: ./mixed_reality [vocabulary_file] [settings_file] [shader_dir] [model_file] [dataset_dir] [(optional) record_file]" << std::endl;
+        // Optional argument at the end: filepath to record when the objects were placed
         return -1;
     }
 
@@ -28,6 +83,17 @@ int main(int argc, char* argv[])
     } else {
         std::cerr << "Invalid dataset type provided" << std::endl;
         return -1;
+    }
+
+    // When optional filepath is provided, open the file and check if there is already a recording.
+    // If there is, then read from the recording, otherwise we write to the recording.
+    std::vector<std::tuple<int, cv::Mat, cv::Mat, float>> recordings;
+    bool record_file_exists = false;
+    bool read_or_write = false;
+    if (argc > 6) {
+        record_file_exists = true;
+        recordings = read_recording(argv[6]);
+        read_or_write = (recordings.size() > 0);
     }
 
     // Camera implementation
@@ -53,6 +119,7 @@ int main(int argc, char* argv[])
 
     // The completed depths have 4 fewer frames than the dataset,
     // so we have to adjust for the indexing.
+    int record_idx = 0;
     int num_frames = camera->get_frame_count();
     for (int i = 0; i < num_frames; i++) {
         std::tuple<cv::Mat, cv::Mat, double> stream = camera->get_stream();
@@ -96,12 +163,39 @@ int main(int argc, char* argv[])
         renderer.set_images(rgb_image, completed_depth);
         renderer.set_lights(lights);
 
+        // If we're reading from a recording, check if we're at an object.
+        // Otherwise if we're recording, check if an object was added.
+        if (record_file_exists) {
+            if (read_or_write) {
+                std::tuple<int, cv::Mat, cv::Mat, float> &record = recordings[record_idx];
+
+                // If we're at a frame where an object was recorded, add it.
+                if (std::get<0>(record) == i) {
+                    renderer.add_object(std::get<1>(record), std::get<2>(record), std::get<3>(record));
+                    std::cout << "[MAIN LOOP]: Adding recorded object at frame " << i << std::endl;
+                    record_idx++;
+                }
+            } else {
+                Plane* object_added = renderer.get_most_recent_object();
+                if (object_added) {
+                    std::tuple<cv::Mat, cv::Mat, float> info = object_added->get_plane_information();
+                    recordings.push_back(std::make_tuple(i, std::get<0>(info), std::get<1>(info), std::get<2>(info)));
+                    std::cout << "[MAIN LOOP]: Recording object added at frame " << i << std::endl;
+                }
+            }
+        }
+
         // This controls the offline camera's speed 
         std::this_thread::sleep_for(std::chrono::milliseconds(17 - milliseconds_passed));
     }
 
     renderer.close();
     thread.join();
+
+    // If we recorded objects, write out to the file
+    if (record_file_exists && !read_or_write) {
+        write_recording(argv[6], recordings);
+    }
 
     delete camera;
     delete light_estimator;

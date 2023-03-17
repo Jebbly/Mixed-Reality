@@ -2,6 +2,7 @@
 #define GEOMETRY_UTIL_H
 
 #include <iostream>
+#include <tuple>
 #include <vector>
 
 #include <assimp/Importer.hpp>
@@ -42,14 +43,20 @@ const int quad_indices[] = {
 // A Plane defines the local coordinate space for each inserted object.
 class Plane
 {
-public:
-    Plane(const std::vector<ORB_SLAM3::MapPoint*> &plane_points, const cv::Mat &camera_pose);
-    void recompute(const cv::Mat &camera_pose);
+private:
+    cv::Mat m_origin, m_normal;
+    float m_orientation;
+    glm::mat4 m_model_matrix;
 
-    cv::Mat normal, origin;
-    float orientation;
-    glm::mat4 model_matrix;
-    std::vector<ORB_SLAM3::MapPoint*> map_points;
+public:
+    Plane(const cv::Mat &origin, const cv::Mat &normal, float orienation);
+    Plane(const std::vector<ORB_SLAM3::MapPoint*> &plane_points, const cv::Mat &camera_pose);
+
+    const glm::mat4& get_model_matrix() const;
+    std::tuple<cv::Mat, cv::Mat, float> get_plane_information() const;
+
+private:
+    void recompute_model_matrix();
 };
 
 Plane* detect_plane(const std::vector<ORB_SLAM3::MapPoint*> &curr_map_points,
