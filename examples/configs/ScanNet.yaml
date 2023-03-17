@@ -22,6 +22,7 @@ Camera1.k3: 0.0
 Camera.width: 1296
 Camera.height: 968
 
+# Delete this to draw keypoints correctly
 Camera.newWidth: 640
 Camera.newHeight: 480
 
