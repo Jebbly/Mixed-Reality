@@ -44,5 +44,14 @@ private:
     float rand_float() const;
 };
 
+// This implementation always generates the same light sources.
+class ConstLightEstimator : public LightEstimator
+{
+public:
+    ConstLightEstimator(int num_lights);
+
+    virtual void estimate_lights(const cv::Mat &rgb_image, const cv::Mat &depth_image);
+};
+
 
 #endif // LIGHT_ESTIMATION_H

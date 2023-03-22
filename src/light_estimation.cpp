@@ -50,3 +50,21 @@ float RandLightEstimator::rand_float() const
 {
     return ((float) std::rand() / RAND_MAX) * 2.0f - 1.0f;
 }
+
+ConstLightEstimator::ConstLightEstimator(int num_lights) :
+    LightEstimator(num_lights)
+{
+    for (int i = 0; i < m_num_lights; i++) {
+        Light light;
+        light.position = glm::vec3(0.1f) * static_cast<float>(i + 1);
+        light.position[i % 3] *= 1.0f;
+        light.color = glm::vec3(1.0f, 1.0f, 0.75f);
+        light.intensity = 5.0f;
+        m_lights.push_back(light);
+    }
+}
+
+void ConstLightEstimator::estimate_lights(const cv::Mat &rgb_image, const cv::Mat &depth_image)
+{
+    return;
+}
