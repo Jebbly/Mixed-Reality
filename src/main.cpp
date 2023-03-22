@@ -5,6 +5,7 @@
 #include <string>
 #include <thread>
 
+#include <opencv2/opencv.hpp>
 #include <System.h> // ORB-SLAM system needed for tracking
 
 #include "renderer.h"
@@ -68,7 +69,7 @@ void write_recording(const std::string &filepath, const std::vector<std::tuple<i
 int main(int argc, char* argv[])
 {
     if (argc < 6) {
-        std::cerr << "Usage: ./mixed_reality [vocabulary_file] [settings_file] [shader_dir] [model_file] [dataset_dir] [(optional) record_file]" << std::endl;
+        std::cerr << "Usage: ./mixed_reality [vocabulary_file] [settings_file] [shader_dir] [model_file] [dataset_dir] [(optional) record_file] [(optional) record_video]" << std::endl;
         // Optional argument at the end: filepath to record when the objects were placed
         return -1;
     }
@@ -88,12 +89,15 @@ int main(int argc, char* argv[])
     // When optional filepath is provided, open the file and check if there is already a recording.
     // If there is, then read from the recording, otherwise we write to the recording.
     std::vector<std::tuple<int, cv::Mat, cv::Mat, float>> recordings;
-    bool record_file_exists = false;
-    bool read_or_write = false;
+    bool record_file_exists = false, read_or_write = false;
+    std::string video_dir = "";
     if (argc > 6) {
         record_file_exists = true;
         recordings = read_recording(argv[6]);
         read_or_write = (recordings.size() > 0);
+        if (argc > 7) {
+            video_dir = argv[7];
+        }
     }
 
     // Camera implementation
@@ -182,6 +186,20 @@ int main(int argc, char* argv[])
                     recordings.push_back(std::make_tuple(i, std::get<0>(info), std::get<1>(info), std::get<2>(info)));
                     std::cout << "[MAIN LOOP]: Recording object added at frame " << i << std::endl;
                 }
+            }
+        }
+
+        // If we're recording video, copy the renderer contents back to a cv::Mat
+        if (!video_dir.empty()) {
+            cv::Mat frame = renderer.get_most_recent_frame();
+            if (frame.empty()) {
+                std::cout << "[MAIN LOOP]: Received empty frame at frame " << i << std::endl;
+            } else {
+                std::string frame_id = std::to_string(i);
+                int padding = 5 - frame_id.length();
+                frame_id.insert(0, padding, '0');
+                frame_id += ".png";
+                cv::imwrite(video_dir + '/' + frame_id, frame);
             }
         }
 

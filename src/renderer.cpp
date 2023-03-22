@@ -9,6 +9,7 @@ Renderer::Renderer(size_t width, size_t height, const std::string &settings, con
     m_image_updated{false},
     m_draw_key_points{false},
     m_add_object{false},
+    m_copy_pixel_data{true},
     m_should_close{false},
     m_last_object_added{nullptr},
     m_last_frame{std::chrono::system_clock::now()}
@@ -31,6 +32,7 @@ void Renderer::run()
     init_scene();
     init_ui();
 
+    std::unique_lock<std::mutex> render_lock(m_render_mutex, std::defer_lock);
     std::unique_lock<std::mutex> slam_lock(m_slam_mutex, std::defer_lock);
     std::unique_lock<std::mutex> image_lock(m_image_mutex, std::defer_lock);
     std::unique_lock<std::mutex> light_lock(m_light_mutex, std::defer_lock);
@@ -42,13 +44,14 @@ void Renderer::run()
     glEnable(GL_MULTISAMPLE);
     while (!m_should_close)
     {
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+        render_lock.lock();
         slam_lock.lock();
         image_lock.lock();
         light_lock.lock();
         object_lock.lock();
+
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         if (m_draw_key_points) {
             draw_key_points();
@@ -78,13 +81,18 @@ void Renderer::run()
 
         m_image_updated = false;
 
+        if (m_copy_pixel_data) {
+            copy_pixel_data();
+        }
+
+        // draw the UI on top of everything else
+        draw_ui();
+
+        render_lock.unlock();
         slam_lock.unlock();
         image_lock.unlock();
         light_lock.unlock();
         object_lock.unlock();
-
-        // draw the UI on top of everything else
-        draw_ui();
 
         glfwPollEvents();
         glfwSwapBuffers(m_window);
@@ -140,6 +148,14 @@ Plane* Renderer::get_most_recent_object()
     Plane* last_object = m_last_object_added;
     m_last_object_added = nullptr; 
     return last_object;
+}
+
+cv::Mat Renderer::get_most_recent_frame()
+{
+    std::lock_guard<std::mutex> lock(m_render_mutex);
+
+    m_copy_pixel_data = true;
+    return m_image;
 }
 
 static void glfw_resize_callback(GLFWwindow* window, int width, int height)
@@ -225,6 +241,8 @@ void Renderer::init_framebuffer()
     glBindRenderbuffer(GL_RENDERBUFFER, rbo_depth);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 2 * m_width, 2 * m_height);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo_depth);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     std::cout << "[RENDERER]: Geometry framebuffer created" << std::endl;
 }
@@ -435,4 +453,23 @@ void Renderer::draw_ui()
     ImGui::End();
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
+// Utility for accessing the OpenGL render,
+// which cannot be done on the other thread 
+// because OpenGL functions are called
+void Renderer::copy_pixel_data()
+{
+    // Make sure rendering is finished first
+    glFinish();
+
+    // Copy the buffer data to a cv::Mat
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    m_image = cv::Mat(m_height, m_width, CV_8UC3);
+    glPixelStorei(GL_PACK_ALIGNMENT, (m_image.step & 3) ? 1 : 4);
+    glPixelStorei(GL_PACK_ROW_LENGTH, m_image.step/m_image.elemSize());
+    glReadBuffer(GL_BACK);
+    glReadPixels(0, 0, m_width, m_height, GL_BGR, GL_UNSIGNED_BYTE, m_image.data);
+    cv::flip(m_image, m_image, 0);
+    m_copy_pixel_data = false;
 }

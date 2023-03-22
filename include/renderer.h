@@ -63,11 +63,16 @@ private:
     bool m_image_updated;
     bool m_draw_key_points;
     bool m_add_object;
+    bool m_copy_pixel_data;
     bool m_should_close;
 
     // Externally check when an object was added
     std::mutex m_object_mutex;
     Plane* m_last_object_added;
+
+    // Externally access the rendered image
+    std::mutex m_render_mutex;
+    cv::Mat m_image;
 
     // Timestep for animation
     std::chrono::time_point<std::chrono::system_clock> m_last_frame;
@@ -92,8 +97,9 @@ public:
 
     void add_object(const cv::Mat &origin, const cv::Mat &normal, float orientation);
     
-    // The main loop needs to know at which point an object was added
+    // When recording, the main loop needs access to certain information from the renderer
     Plane* get_most_recent_object();
+    cv::Mat get_most_recent_frame();
 
 private:
     // Initialization helpers
@@ -110,6 +116,11 @@ private:
     void draw_background_image();
     void draw_scene();
     void draw_ui();
+
+    // Utility for accessing the OpenGL render,
+    // which cannot be done on the other thread 
+    // because OpenGL functions are called
+    void copy_pixel_data();
 };
 
 #endif // RENDERER_H
