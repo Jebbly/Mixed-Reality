@@ -1,6 +1,6 @@
 #include "renderer.h"
 
-Renderer::Renderer(size_t width, size_t height, const std::string &settings, const std::string &shaders, const std::string &model_path) : 
+Renderer::Renderer(size_t width, size_t height, float scale, const std::string &settings, const std::string &shaders, const std::string &model_path) : 
     m_width{width}, 
     m_height{height}, 
     m_camera_settings{settings},
@@ -15,6 +15,8 @@ Renderer::Renderer(size_t width, size_t height, const std::string &settings, con
     m_last_frame{std::chrono::system_clock::now()}
 {
     // Most initialization happens when run() is called on a separate thread
+    m_scaled_width = static_cast<size_t>(m_width * scale);
+    m_scaled_height = static_cast<size_t>(m_height * scale);
 }
 
 Renderer::~Renderer()
@@ -158,11 +160,6 @@ cv::Mat Renderer::get_most_recent_frame()
     return m_image;
 }
 
-static void glfw_resize_callback(GLFWwindow* window, int width, int height)
-{
-    glViewport(0, 0, width, height);
-}
-
 // Initialization helpers
 void Renderer::init_window()
 {
@@ -172,19 +169,15 @@ void Renderer::init_window()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
+    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
     glfwWindowHint(GLFW_SAMPLES, 4);
 
     // Create window and make context current
-    m_window = glfwCreateWindow(m_width, m_height, "Mixed Reality Demo", NULL, NULL);
+    m_window = glfwCreateWindow(m_scaled_width, m_scaled_height, "Mixed Reality Demo", NULL, NULL);
     if (m_window == NULL)
     {
         std::cerr << "[RENDERER]: GLFW Error" << std::endl;
     }
-
-    glfwSetWindowAspectRatio(m_window, m_width, m_height);
-    glfwSetWindowSizeCallback(m_window, glfw_resize_callback);
-    glfwSetWindowSizeLimits(m_window, m_width, m_height, GLFW_DONT_CARE, GLFW_DONT_CARE);
 
     std::cout << "[RENDERER]: Window created" << std::endl;
 }
@@ -199,7 +192,8 @@ void Renderer::init_gl()
           std::cerr << "[RENDERER]: GLAD Error" << std::endl;
     }
 
-    glViewport(0, 0, m_width, m_height);
+    // Render at some scale
+    glViewport(0, 0, m_scaled_width, m_scaled_height);
 
     m_persp = camera_projection(m_width, m_height, m_camera_settings);
 
@@ -347,10 +341,7 @@ void Renderer::draw_key_points()
 
 void Renderer::draw_background_image() 
 {
-    // Render this to the window's resolution
-    int width, height;
-    glfwGetWindowSize(m_window, &width, &height);
-    glViewport(0, 0, width, height);
+    glViewport(0, 0, m_scaled_width, m_scaled_height);
 
     // Get the most recently updated image if it changed
     if (m_image_updated) {
@@ -374,7 +365,7 @@ void Renderer::draw_scene()
         return;
     }
 
-    // We first render everything at the camera's resolution
+    // Render objects at 2x resolution
     glViewport(0, 0, 2 * m_width, 2 * m_height);
 
     // First draw to a geometry buffer
@@ -393,11 +384,8 @@ void Renderer::draw_scene()
 
     m_scene.draw(m_geometry_shader);
 
-    // Then we use the data in the deferred shading pass,
-    // which should be at the window's resolution
-    int width, height;
-    glfwGetWindowSize(m_window, &width, &height);
-    glViewport(0, 0, width, height);
+    // Then render at scaled resolution
+    glViewport(0, 0, m_scaled_width, m_scaled_height);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glActiveTexture(GL_TEXTURE0);
@@ -465,11 +453,11 @@ void Renderer::copy_pixel_data()
 
     // Copy the buffer data to a cv::Mat
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    m_image = cv::Mat(m_height, m_width, CV_8UC3);
+    m_image = cv::Mat(m_scaled_height, m_scaled_width, CV_8UC3);
     glPixelStorei(GL_PACK_ALIGNMENT, (m_image.step & 3) ? 1 : 4);
     glPixelStorei(GL_PACK_ROW_LENGTH, m_image.step/m_image.elemSize());
     glReadBuffer(GL_BACK);
-    glReadPixels(0, 0, m_width, m_height, GL_BGR, GL_UNSIGNED_BYTE, m_image.data);
+    glReadPixels(0, 0, m_scaled_width, m_scaled_height, GL_BGR, GL_UNSIGNED_BYTE, m_image.data);
     cv::flip(m_image, m_image, 0);
     m_copy_pixel_data = false;
 }

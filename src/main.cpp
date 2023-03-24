@@ -111,15 +111,15 @@ int main(int argc, char* argv[])
 
     // Start the SLAM and renderer threads
     ORB_SLAM3::System SLAM(argv[1], argv[2], ORB_SLAM3::System::RGBD, false);
-    Renderer renderer(width, height, argv[2], argv[3], argv[4]);
+    Renderer renderer(width, height, 1.0f, argv[2], argv[3], argv[4]);
     std::thread thread = std::thread(&Renderer::run, &renderer);
 
     // Arbitrary time for the renderer to initialize
     std::this_thread::sleep_for(std::chrono::milliseconds(16));
 
     // Implementations of light source estimation and depth completion
-    LightEstimator* light_estimator = new RandLightEstimator(NUM_LIGHTS);
-    DepthCompleter* depth_completer = new OfflineDepthCompleter(argv[5], "", type);
+    LightEstimator* light_estimator = new ConstLightEstimator(NUM_LIGHTS);
+    DepthCompleter* depth_completer = new OfflineDepthCompleter(argv[5], "table3-ctrl_", type);
 
     // The completed depths have 4 fewer frames than the dataset,
     // so we have to adjust for the indexing.

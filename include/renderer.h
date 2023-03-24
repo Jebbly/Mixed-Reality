@@ -27,6 +27,7 @@ class Renderer
 private:
     // Properties of the renderer
     size_t m_width, m_height;
+    size_t m_scaled_width, m_scaled_height;
     GLFWwindow* m_window;
     std::string m_shader_dir, m_model_path, m_camera_settings;
 
@@ -79,7 +80,7 @@ private:
 
 public:
     // Some things need to be initialized/destroyed before/after the main loop
-    Renderer(size_t width, size_t height, const std::string &settings, const std::string &shaders, const std::string &model_path);
+    Renderer(size_t width, size_t height, float scale, const std::string &settings, const std::string &shaders, const std::string &model_path);
     ~Renderer();
 
     // Main event loop and mark when to close
