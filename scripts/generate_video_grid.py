@@ -16,6 +16,10 @@ for filename in sorted(glob.glob(os.path.join(folders[0],"*.png"))):
 example_image = cv2.imread(os.path.join(folders[0], frames[0]))
 height, width, channels = example_image.shape
 
+# Specify the text to add to the videos
+text_coords = (50, height - 50)
+video_text = ["top-left", "top-right", "bottom-left", "bottom-right"]
+
 # Write out a grid of frames
 fps = 20
 video_size = (2 * width, 2 * height)
@@ -26,6 +30,7 @@ for frame in frames:
     for i in range(4):
         image_path = os.path.join(folders[i], frame)
         image = cv2.imread(image_path)
+        image = cv2.putText(image, video_text[i], text_coords, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
         image_grid.append(image)
     
     # Put the images together in a grid
@@ -33,5 +38,6 @@ for frame in frames:
     bot = np.concatenate((image_grid[2], image_grid[3]), axis=1)
     final = np.concatenate((top, bot), axis=0)
     video_writer.write(final)
+    print("Wrote frame", frame)
 
 video_writer.release()
